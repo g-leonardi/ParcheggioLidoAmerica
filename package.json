@@ -1,0 +1,23 @@
+{
+  "name": "parcheggio-backend",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Backend gestione parcheggio stabilimento balneare",
+  "scripts": {
+    "seed": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning src/seed.js",
+    "dev": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning --watch src/server.js",
+    "start": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning src/server.js",
+    "client:install": "npm --prefix client install",
+    "client:build": "npm --prefix client run build",
+    "build": "npm run client:install && npm run client:build"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "dependencies": {
+    "@fastify/multipart": "^9.0.0",
+    "@fastify/static": "^8.0.0",
+    "fastify": "^5.2.0"
+  }
+}
