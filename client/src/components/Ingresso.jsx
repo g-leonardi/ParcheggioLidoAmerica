@@ -132,14 +132,14 @@ export default function Ingresso() {
     return (
       <div className="pannello">
         <h2>Inserimento manuale</h2>
-        <div className="errore">{fotoErr || 'Targa non riconosciuta.'}</div>
+        {fotoErr && <div className="errore">{fotoErr}</div>}
         <TargaInput
           value={targa}
           onChange={setTarga}
           onPick={(t) => { setTarga(t); controlla(t); }}
         />
         <button className="btn-grande" onClick={() => controlla(targa)}>CONTROLLA</button>
-        <button className="btn-testo" onClick={reset}>← Riscatta foto</button>
+        <button className="btn-testo" onClick={reset}>{fotoErr ? '← Riscatta foto' : '← Indietro'}</button>
       </div>
     );
   }
