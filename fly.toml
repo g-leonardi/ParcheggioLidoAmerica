@@ -1,0 +1,35 @@
+# Config Fly.io. Cambia "app" col nome che scegli (deve essere unico su Fly).
+app = "parcheggio-lido-america"
+primary_region = "fra"   # Francoforte (UE, vicino all'Italia, GDPR)
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  PORT = "8080"
+  DB_PATH = "/data/parcheggio.db"
+  AUTH_DEV_BYPASS = "0"
+  ALPR_URL = "https://api.platerecognizer.com/v1/plate-reader/"
+  ALPR_REGIONS = "it"
+  ALPR_CONFIDENCE_MIN = "0.65"
+  ALPR_MOCK = "0"
+  # I SEGRETI (SUPERUSER_PASSWORD, AUTH_SECRET, ALPR_API_KEY) si impostano con
+  # `fly secrets set ...`, MAI qui dentro.
+
+# Volume persistente: ci vive il database SQLite (sopravvive a deploy e riavvii).
+[[mounts]]
+  source = "parcheggio_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Stagionale: la macchina si ferma quando non c'è traffico (costo ~0 fuori stagione)
+  # e riparte da sola alla prima richiesta. Il volume resta.
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

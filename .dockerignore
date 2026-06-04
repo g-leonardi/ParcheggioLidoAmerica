@@ -1,0 +1,19 @@
+# Mai nell'immagine: dipendenze (reinstallate), build, dati personali, segreti, git.
+node_modules
+client/node_modules
+client/dist
+.git
+.gitignore
+# DATI PERSONALI (GDPR): il DB sta sul volume, non nell'immagine
+data
+*.bak-*
+# Segreti
+.env
+*.local.md
+CREDENZIALI.local.md
+# Rumore
+.DS_Store
+*.log
+README.md
+CLAUDE.md
+test-alpr.js
