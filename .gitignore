@@ -7,3 +7,13 @@ data/*.db-wal
 .env
 *.log
 .DS_Store
+# Credenziali / segreti in chiaro — mai nel repo
+*.local.md
+CREDENZIALI.local.md
+# Dati personali (GDPR): anagrafica reale, export iscrizioni, report, backup DB.
+# Versionato solo l'esempio fittizio data/cabine.example.json.
+data/cabine.json
+data/iscrizioni.csv
+data/*.csv
+data/anomalie*
+data/*.bak-*

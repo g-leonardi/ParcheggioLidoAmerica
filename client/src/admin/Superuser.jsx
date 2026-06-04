@@ -65,12 +65,16 @@ function Dashboard({ token, onLogout }) {
       </header>
       <main className="contenuto">
         {vista === 'dispositivi' && <Dispositivi token={token} onAuthFail={onLogout} />}
+        {vista === 'anagrafica' && <Anagrafica token={token} onAuthFail={onLogout} />}
         {vista === 'alpr' && <Alpr token={token} onAuthFail={onLogout} />}
         {vista === 'log' && <Log token={token} onAuthFail={onLogout} />}
       </main>
       <nav className="tabbar">
         <button className={vista === 'dispositivi' ? 'attivo' : ''} onClick={() => setVista('dispositivi')}>
           <span className="tab-icon">📱</span>Dispositivi
+        </button>
+        <button className={vista === 'anagrafica' ? 'attivo' : ''} onClick={() => setVista('anagrafica')}>
+          <span className="tab-icon">🏖️</span>Cabine
         </button>
         <button className={vista === 'alpr' ? 'attivo' : ''} onClick={() => setVista('alpr')}>
           <span className="tab-icon">📷</span>ALPR
@@ -213,6 +217,162 @@ function Dispositivi({ token, onAuthFail }) {
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+const MOTIVI = {
+  gia_esistente: 'Cabina già esistente.',
+  posti_non_validi: 'Numero di posti non valido.',
+  numero_mancante: 'Indica il nome della cabina.',
+  gia_presente: 'Targa già presente in questa cabina.',
+  targa_non_valida: 'Targa non valida (troppo corta).',
+  cabina_non_trovata: 'Cabina non trovata.',
+  non_trovata: 'Non trovata.',
+};
+function messaggio(r) {
+  if (r.motivo === 'targa_in_altra_cabina') return `Targa già assegnata alla cabina ${r.cabina}.`;
+  return MOTIVI[r.motivo] || 'Operazione non riuscita.';
+}
+
+function Anagrafica({ token, onAuthFail }) {
+  const [cabine, setCabine] = useState(null);
+  const [q, setQ] = useState('');
+  const [nNum, setNNum] = useState('');
+  const [nPosti, setNPosti] = useState(2);
+  const [msg, setMsg] = useState('');
+
+  async function carica() {
+    const r = await api.cabine(token);
+    if (r.cabine) setCabine(r.cabine);
+    else onAuthFail();
+  }
+  useEffect(() => { carica(); }, []);
+
+  async function creaCabina() {
+    const r = await api.creaCabina(token, nNum, Number(nPosti));
+    if (r.ok) { setNNum(''); setNPosti(2); setMsg(''); carica(); }
+    else setMsg(messaggio(r));
+  }
+
+  if (!cabine) return <div className="pannello"><p className="muto">…</p></div>;
+
+  const filtro = q.trim().toUpperCase().replace(/\s/g, '');
+  const viste = filtro
+    ? cabine.filter((c) => c.numero.toUpperCase().includes(filtro) || c.targhe.some((t) => t.includes(filtro)))
+    : cabine;
+  const totTarghe = cabine.reduce((s, c) => s + c.targhe.length, 0);
+
+  return (
+    <div className="pannello">
+      <h2>Cabine e targhe</h2>
+      <div className="muto piccolo ana-tot">{cabine.length} cabine · {totTarghe} targhe</div>
+
+      <div className="ana-nuova">
+        <input
+          className="ti-input ana-num"
+          value={nNum}
+          onChange={(e) => setNNum(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && nNum.trim() && creaCabina()}
+          placeholder="Nuova cabina (es. G42)"
+          autoCapitalize="characters"
+          autoCorrect="off"
+        />
+        <input
+          className="ti-input ana-posti-input"
+          type="number"
+          min="1"
+          value={nPosti}
+          onChange={(e) => setNPosti(e.target.value)}
+          aria-label="posti"
+        />
+        <button className="btn-ok" onClick={creaCabina} disabled={!nNum.trim()}>Aggiungi</button>
+      </div>
+      {msg && <div className="msg-err">{msg}</div>}
+
+      <input
+        className="ti-input cerca"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Cerca cabina o targa…"
+        autoCapitalize="characters"
+        autoCorrect="off"
+      />
+
+      {viste.length === 0 ? (
+        <p className="muto">{filtro ? 'Nessuna corrispondenza.' : 'Nessuna cabina. Aggiungine una sopra o importa il CSV.'}</p>
+      ) : (
+        <div className="ana-lista">
+          {viste.map((c) => (
+            <CardCabina key={c.numero} cabina={c} token={token} onChange={carica} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CardCabina({ cabina, token, onChange }) {
+  const [targa, setTarga] = useState('');
+  const [err, setErr] = useState('');
+  const [posti, setPosti] = useState(cabina.posti);
+
+  async function setP(nuovo) {
+    if (nuovo < 1) return;
+    const prima = posti;
+    setPosti(nuovo);
+    setErr('');
+    const r = await api.aggiornaPosti(token, cabina.numero, nuovo);
+    if (!r.ok) { setPosti(prima); setErr(messaggio(r)); } else onChange();
+  }
+  async function addTarga() {
+    const r = await api.aggiungiTarga(token, cabina.numero, targa);
+    if (r.ok) { setTarga(''); setErr(''); onChange(); } else setErr(messaggio(r));
+  }
+  async function delTarga(t) {
+    const r = await api.rimuoviTarga(token, t);
+    if (r.ok) onChange();
+  }
+  async function elimina() {
+    if (!confirm(`Eliminare la cabina ${cabina.numero} e le sue ${cabina.targhe.length} targhe?`)) return;
+    const r = await api.eliminaCabina(token, cabina.numero);
+    if (r.ok) onChange();
+  }
+
+  return (
+    <div className="ana-card">
+      <div className="ana-card-head">
+        <span className="ana-cab">{cabina.numero}</span>
+        <div className="ana-posti">
+          <button onClick={() => setP(posti - 1)} disabled={posti <= 1}>−</button>
+          <span>{posti} <small>posti</small></span>
+          <button onClick={() => setP(posti + 1)}>+</button>
+        </div>
+        <button className="ana-del" onClick={elimina} title="Elimina cabina">🗑</button>
+      </div>
+      <div className="ana-targhe">
+        {cabina.targhe.length === 0 && <span className="muto piccolo">nessuna targa</span>}
+        {cabina.targhe.map((t) => (
+          <span key={t} className="ana-chip">
+            {t}
+            <button onClick={() => delTarga(t)} aria-label={`rimuovi ${t}`}>×</button>
+          </span>
+        ))}
+      </div>
+      <div className="ana-addtarga">
+        <input
+          className="ti-input"
+          value={targa}
+          onChange={(e) => setTarga(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && targa.trim() && addTarga()}
+          placeholder="Aggiungi targa…"
+          autoCapitalize="characters"
+          autoCorrect="off"
+          spellCheck={false}
+        />
+        <button className="btn-ok" onClick={addTarga} disabled={!targa.trim()}>+</button>
+      </div>
+      {err && <div className="msg-err piccolo">{err}</div>}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { normalizeTarga } from './util.js';
 import * as core from './occupancy.js';
 import * as auth from './auth.js';
 import * as alpr from './alpr.js';
+import * as anag from './anagrafica.js';
 
 export default async function routes(app) {
   app.get('/api/health', async () => ({ ok: true, devBypass: auth.DEV_BYPASS }));
@@ -80,6 +81,34 @@ export default async function routes(app) {
     if (typeof v !== 'string') return reply.code(400).send({ ok: false, motivo: 'apikey_non_valida' });
     alpr.setApiKey(v.trim());
     return { ok: true, ...alpr.stato() };
+  });
+
+  // --- Anagrafica (cabine + targhe + posti) ---
+  app.get('/api/admin/cabine', sup, async () => ({ cabine: anag.lista() }));
+
+  app.post('/api/admin/cabine', sup, async (req, reply) => {
+    const r = anag.creaCabina(req.body?.numero, req.body?.posti);
+    return r.ok ? r : reply.code(400).send(r);
+  });
+
+  app.put('/api/admin/cabine/:numero', sup, async (req, reply) => {
+    const r = anag.aggiornaPosti(req.params.numero, req.body?.posti);
+    return r.ok ? r : reply.code(400).send(r);
+  });
+
+  app.delete('/api/admin/cabine/:numero', sup, async (req, reply) => {
+    const r = anag.eliminaCabina(req.params.numero);
+    return r.ok ? r : reply.code(400).send(r);
+  });
+
+  app.post('/api/admin/cabine/:numero/targhe', sup, async (req, reply) => {
+    const r = anag.aggiungiTarga(req.params.numero, req.body?.targa);
+    return r.ok ? r : reply.code(400).send(r);
+  });
+
+  app.delete('/api/admin/targhe/:targa', sup, async (req, reply) => {
+    const r = anag.rimuoviTarga(req.params.targa);
+    return r.ok ? r : reply.code(400).send(r);
   });
 
   app.get('/api/log', sup, async (req) => {

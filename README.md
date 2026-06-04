@@ -11,6 +11,24 @@ npm run seed     # importa data/cabine.json in SQLite
 npm run dev      # avvia in watch su :3000 (oppure: npm start)
 ```
 
+## Configurazione (variabili d'ambiente)
+
+I segreti **non stanno nel repo**: si configurano via `.env` (vedi `.env.example` per l'elenco
+completo e le note). Variabili principali:
+
+| Variabile | Tipo | Descrizione |
+|---|---|---|
+| `SUPERUSER_PASSWORD` | segreto | password area `/admin` |
+| `AUTH_SECRET` | segreto | firma i token HMAC del super user |
+| `ALPR_API_KEY` | segreto | token Plate Recognizer (a consumo) |
+| `PORT`, `DB_PATH`, `SEED_PATH` | config | porta, path DB e seed |
+| `ALPR_URL`, `ALPR_REGIONS`, `ALPR_CONFIDENCE_MIN`, `ALPR_MOCK` | config | parametri ALPR |
+| `AUTH_DEV_BYPASS` | config | `0` in produzione; `1` salta l'auth (solo dev) |
+
+> 🔐 I **valori reali** dei segreti sono nel file locale `CREDENZIALI.local.md` (gitignorato) e
+> in un password manager. In produzione vanno impostati come secret dell'hosting (es. `fly secrets set …`),
+> mai committati.
+
 ## API
 
 | Metodo | Endpoint | Descrizione |

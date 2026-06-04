@@ -49,6 +49,28 @@ export const api = {
       headers: { 'content-type': 'application/json', ...bearer(token) },
       body: JSON.stringify({ apiKey }),
     }).then(json),
+  // --- anagrafica (super user) ---
+  cabine: (token) => fetch('/api/admin/cabine', { headers: bearer(token) }).then(json),
+  creaCabina: (token, numero, posti) => post('/api/admin/cabine', { numero, posti }, bearer(token)),
+  aggiornaPosti: (token, numero, posti) =>
+    fetch(`/api/admin/cabine/${encodeURIComponent(numero)}`, {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json', ...bearer(token) },
+      body: JSON.stringify({ posti }),
+    }).then(json),
+  eliminaCabina: (token, numero) =>
+    fetch(`/api/admin/cabine/${encodeURIComponent(numero)}`, {
+      method: 'DELETE',
+      headers: bearer(token),
+    }).then(json),
+  aggiungiTarga: (token, numero, targa) =>
+    post(`/api/admin/cabine/${encodeURIComponent(numero)}/targhe`, { targa }, bearer(token)),
+  rimuoviTarga: (token, targa) =>
+    fetch(`/api/admin/targhe/${encodeURIComponent(targa)}`, {
+      method: 'DELETE',
+      headers: bearer(token),
+    }).then(json),
+
   log: (token, { giorno, q } = {}) => {
     const params = new URLSearchParams();
     if (q) params.set('q', q);
