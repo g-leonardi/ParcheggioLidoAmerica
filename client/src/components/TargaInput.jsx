@@ -16,7 +16,8 @@ export default function TargaInput({ value, onChange, onPick }) {
     }
     clearTimeout(timer.current);
     timer.current = setTimeout(async () => {
-      const r = await api.suggerisci(q);
+      // Server giù → niente suggerimenti, ma il campo resta usabile (il lookup darà l'errore).
+      const r = await api.suggerisci(q).catch(() => ({ suggerimenti: [] }));
       setSugg(r.suggerimenti || []);
       setOpen(true);
     }, 180); // debounce

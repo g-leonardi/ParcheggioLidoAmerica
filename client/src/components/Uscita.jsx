@@ -6,10 +6,17 @@ export default function Uscita() {
   const [lista, setLista] = useState([]);
   const [filtro, setFiltro] = useState('');
   const [msg, setMsg] = useState(null);
+  const [errore, setErrore] = useState('');
 
   async function carica() {
-    const r = await api.presenti();
-    setLista(r.presenti || []);
+    try {
+      const r = await api.presenti();
+      setLista(r.presenti || []);
+      setErrore('');
+    } catch {
+      // Server giù: dirlo chiaro, NON mostrare "Nessuna auto dentro".
+      setErrore('Server non raggiungibile — lista non aggiornata.');
+    }
   }
 
   useEffect(() => {
@@ -17,9 +24,16 @@ export default function Uscita() {
   }, []);
 
   async function esci(targa) {
-    const r = await api.uscita(targa);
+    let r;
+    try {
+      r = await api.uscita(targa);
+    } catch {
+      setErrore(`Server non raggiungibile — uscita di ${targa} NON registrata.`);
+      return;
+    }
     if (r.ok) {
       setMsg(`${targa} uscita · cabina ${r.cabina} ora ${r.occupati}/${r.posti}`);
+      setErrore('');
       carica();
     }
   }
@@ -40,8 +54,9 @@ export default function Uscita() {
         spellCheck={false}
       />
       {msg && <div className="msg-ok">{msg}</div>}
+      {errore && <div className="errore">{errore}</div>}
       {visibili.length === 0 ? (
-        <p className="vuoto">Nessuna auto dentro.</p>
+        !errore && <p className="vuoto">Nessuna auto dentro.</p>
       ) : (
         <ul className="lista-uscita">
           {visibili.map((p) => (

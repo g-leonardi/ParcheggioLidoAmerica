@@ -16,7 +16,7 @@ export default function Ingresso() {
   const [targa, setTarga] = useState('');
   const [esito, setEsito] = useState(null);
   const [risultato, setRisultato] = useState(null);   // { azione: 'ingresso'|'uscita', targa, cabina }
-  const [fotoErr, setFotoErr] = useState('');         // messaggio se OCR fallisce
+  const [errMsg, setErrMsg] = useState('');           // OCR fallito o server non raggiungibile
   const [confidenza, setConfidenza] = useState(null); // per badge informativo
   const fileRef = useRef(null);
 
@@ -25,7 +25,7 @@ export default function Ingresso() {
     setTarga('');
     setEsito(null);
     setRisultato(null);
-    setFotoErr('');
+    setErrMsg('');
     setConfidenza(null);
     if (fileRef.current) fileRef.current.value = '';
   }
@@ -33,7 +33,16 @@ export default function Ingresso() {
   async function controlla(t) {
     const tt = (t || '').trim();
     if (!tt) return;
-    const r = await api.lookup(tt);
+    let r;
+    try {
+      r = await api.lookup(tt);
+    } catch {
+      // Server non raggiungibile: errore esplicito, MAI fallire in silenzio.
+      setErrMsg(SERVER_GIU);
+      setFase('manuale');
+      return;
+    }
+    setErrMsg('');
     setEsito(r);
     setFase('lookup');
   }
@@ -43,7 +52,7 @@ export default function Ingresso() {
     const file = e.target.files?.[0];
     if (!file) return;
     setFase('ocr');
-    setFotoErr('');
+    setErrMsg('');
     setConfidenza(null);
     const r = await api.alpr(file).catch(() => ({ ok: false, motivo: 'errore_rete' }));
     if (r.ok && r.targa && !r.sottoSoglia) {
@@ -56,11 +65,11 @@ export default function Ingresso() {
     if (r.ok && r.targa && r.sottoSoglia) {
       setTarga(r.targa);
       setConfidenza(r.confidenza);
-      setFotoErr(`Targa poco leggibile (confidenza ${Math.round(r.confidenza * 100)}%). Verifica e correggi.`);
+      setErrMsg(`Targa poco leggibile (confidenza ${Math.round(r.confidenza * 100)}%). Verifica e correggi.`);
     } else if (r.ok && !r.targa) {
-      setFotoErr('Nessuna targa nella foto.');
+      setErrMsg('Nessuna targa nella foto.');
     } else {
-      setFotoErr(motivoLeggibile(r.motivo));
+      setErrMsg(motivoLeggibile(r.motivo));
     }
     setFase('manuale');
   }
@@ -68,7 +77,14 @@ export default function Ingresso() {
   async function conferma() {
     const cfg = ESITI[esito.decisione];
     const t = esito.targa;
-    const r = cfg.azione === 'ingresso' ? await api.ingresso(t) : await api.uscita(t);
+    let r;
+    try {
+      r = cfg.azione === 'ingresso' ? await api.ingresso(t) : await api.uscita(t);
+    } catch {
+      setErrMsg(`${SERVER_GIU} L'operazione NON è stata registrata.`);
+      setFase('manuale');
+      return;
+    }
     if (r.ok) {
       setRisultato({ azione: cfg.azione, targa: t, cabina: r.cabina });
       setFase('fatto');
@@ -132,14 +148,14 @@ export default function Ingresso() {
     return (
       <div className="pannello">
         <h2>Inserimento manuale</h2>
-        {fotoErr && <div className="errore">{fotoErr}</div>}
+        {errMsg && <div className="errore">{errMsg}</div>}
         <TargaInput
           value={targa}
           onChange={setTarga}
           onPick={(t) => { setTarga(t); controlla(t); }}
         />
         <button className="btn-grande" onClick={() => controlla(targa)}>CONTROLLA</button>
-        <button className="btn-testo" onClick={reset}>{fotoErr ? '← Riscatta foto' : '← Indietro'}</button>
+        <button className="btn-testo" onClick={reset}>{errMsg ? '← Riscatta foto' : '← Indietro'}</button>
       </div>
     );
   }
@@ -179,6 +195,9 @@ export default function Ingresso() {
   );
 }
 
+// Distinto dai fallimenti OCR: qui è l'app che non raggiunge il NOSTRO server.
+const SERVER_GIU = 'Server non raggiungibile — controlla la connessione e riprova.';
+
 function motivoLeggibile(m) {
   switch (m) {
     case 'alpr_non_configurato': return 'Riconoscimento foto non attivo — inserisci la targa a mano.';
@@ -186,6 +205,7 @@ function motivoLeggibile(m) {
     case 'foto_mancante':        return 'Foto non ricevuta.';
     case 'alpr_rete':            return 'Problema di rete con il riconoscimento.';
     case 'alpr_errore':          return 'Errore del servizio di riconoscimento.';
+    case 'errore_rete':          return `${SERVER_GIU} (La targa si può comunque scrivere a mano quando torna la linea.)`;
     default:                     return 'Riconoscimento non riuscito.';
   }
 }
