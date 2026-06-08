@@ -2,14 +2,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
 
 // Le cabine sono "numero + lettera-zona" (es. 101B bianca, 101G gialla); i numeri
-// si ripetono tra zone, quindi le separiamo visivamente. Le 4 speciali (SB/SG/SI/SL)
-// hanno la lettera davanti → finiscono nel gruppo "Speciali".
+// si ripetono tra zone, quindi le separiamo visivamente. Le speciali (SB/SG/SI/SL0)
+// hanno la lettera davanti; le capannine sono CB*/CG*.
 const ZONE = [
   { key: 'bianche', label: 'Bianche', icona: '⚪' },
   { key: 'gialle', label: 'Gialle', icona: '🟡' },
   { key: 'capannine', label: 'Capannine', icona: '🏕️' },
   { key: 'speciali', label: 'Speciali', icona: '⭐' },
 ];
+const CHIPS = [{ key: 'tutte', label: 'Tutte', icona: '' }, ...ZONE];
 
 // Estrae numero e zona da una sigla cabina, gestendo sia "101G" sia "SB".
 function parseCab(cab) {
@@ -29,12 +30,13 @@ function zonaDi(cab) {
 }
 
 // Colpo d'occhio sull'occupazione di tutte le cabine (es. 101B 2/2), raggruppate
-// per zona e ordinabili. Toccando una cabina si vedono le targhe attualmente dentro.
+// per zona, filtrabili e ordinabili. Toccando una cabina si vedono le targhe dentro.
 export default function Stato() {
   const [cabine, setCabine] = useState([]);
   const [presenti, setPresenti] = useState([]);
   const [sel, setSel] = useState(null);
   const [q, setQ] = useState('');
+  const [zonaSel, setZonaSel] = useState('tutte');
   const [ordine, setOrdine] = useState('numero'); // 'numero' (crescente) | 'occupazione'
 
   async function carica() {
@@ -48,6 +50,13 @@ export default function Stato() {
   }, []);
 
   const dentro = sel ? presenti.filter((p) => p.cabina === sel).map((p) => p.targa) : [];
+
+  // Conteggi per le chip (totali per zona, indipendenti dalla ricerca).
+  const conteggi = useMemo(() => {
+    const m = { tutte: cabine.length, bianche: 0, gialle: 0, capannine: 0, speciali: 0 };
+    for (const c of cabine) m[zonaDi(c.cabina)]++;
+    return m;
+  }, [cabine]);
 
   const gruppi = useMemo(() => {
     const filtro = q.trim().toUpperCase();
@@ -66,11 +75,11 @@ export default function Stato() {
               pa.zona.localeCompare(pb.zona) || pa.num - pb.num || a.cabina.localeCompare(b.cabina)
             );
           };
-    return ZONE.map((z) => ({
-      ...z,
-      celle: visibili.filter((c) => zonaDi(c.cabina) === z.key).sort(cmp),
-    })).filter((g) => g.celle.length > 0);
-  }, [cabine, q, ordine]);
+    const zoneDaMostrare = zonaSel === 'tutte' ? ZONE : ZONE.filter((z) => z.key === zonaSel);
+    return zoneDaMostrare
+      .map((z) => ({ ...z, celle: visibili.filter((c) => zonaDi(c.cabina) === z.key).sort(cmp) }))
+      .filter((g) => g.celle.length > 0);
+  }, [cabine, q, zonaSel, ordine]);
 
   const totVisibili = gruppi.reduce((n, g) => n + g.celle.length, 0);
 
@@ -86,23 +95,43 @@ export default function Stato() {
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
-        <div className="stato-ordina" role="group" aria-label="Ordinamento">
-          <button
-            className={ordine === 'numero' ? 'attivo' : ''}
-            onClick={() => setOrdine('numero')}
-          >
-            N°
-          </button>
-          <button
-            className={ordine === 'occupazione' ? 'attivo' : ''}
-            onClick={() => setOrdine('occupazione')}
-          >
-            Pieni
-          </button>
+
+        <div className="stato-chips" role="group" aria-label="Filtra per zona">
+          {CHIPS.map((ch) => (
+            <button
+              key={ch.key}
+              className={`stato-chip ${zonaSel === ch.key ? 'attivo' : ''}`}
+              onClick={() => setZonaSel(ch.key)}
+            >
+              {ch.icona && <span aria-hidden="true">{ch.icona}</span>}
+              {ch.label}
+              <span className="chip-n">{conteggi[ch.key] ?? 0}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="stato-ordina-row">
+          <span className="stato-lbl">Ordina</span>
+          <div className="stato-ordina" role="group" aria-label="Ordinamento">
+            <button
+              className={ordine === 'numero' ? 'attivo' : ''}
+              onClick={() => setOrdine('numero')}
+            >
+              N°
+            </button>
+            <button
+              className={ordine === 'occupazione' ? 'attivo' : ''}
+              onClick={() => setOrdine('occupazione')}
+            >
+              Più pieni
+            </button>
+          </div>
         </div>
       </div>
 
-      {q.trim() && <p className="ricerca-info">{totVisibili} cabine trovate</p>}
+      {(q.trim() || zonaSel !== 'tutte') && (
+        <p className="ricerca-info">{totVisibili} cabine</p>
+      )}
 
       {gruppi.length === 0 ? (
         <p className="vuoto">Nessuna cabina trovata.</p>
