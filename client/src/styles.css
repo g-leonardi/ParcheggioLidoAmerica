@@ -905,3 +905,136 @@ body {
 .ana-addtarga { display: flex; gap: 8px; }
 .ana-addtarga .ti-input { flex: 1; min-width: 0; text-transform: uppercase; }
 .ana-addtarga .btn-ok { width: 48px; }
+
+/* --- toggle tema in topbar (visibile in entrambi i temi: topbar resta scura) --- */
+.tema-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 7px 13px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+/* ============================================================
+   TEMA CHIARO "SOLE" — SOLO app operatore.
+   Attivo quando <html data-tema="chiaro"> (impostato da useTema in
+   OperatorApp). L'admin non scrive mai data-tema → resta scuro.
+   Obiettivo: leggibilità sotto sole diretto → fondo chiaro, testo
+   scuro, niente grigi tenui. Gli schermi-esito verde/rosso a tutto
+   campo NON si toccano (già ottimi al sole).
+   ============================================================ */
+:root[data-tema="chiaro"] {
+  --bg: #eef2f7;        /* fondo chiaro, non bianco puro → meno abbagliante */
+  --card: #ffffff;
+  --bordo: #cbd5e1;
+  --testo: #0f172a;     /* quasi nero */
+  --muto: #475569;      /* niente più grigio-fantasma illeggibile al sole */
+  --verde: #15803d;     /* leggermente più scuro = più stacco sul chiaro */
+  --rosso: #b91c1c;
+  --ambra: #b45309;
+}
+
+/* input targa + autocomplete: fondo bianco → testo scuro (erano #fff hardcoded) */
+:root[data-tema="chiaro"] .ti-input,
+:root[data-tema="chiaro"] .ti-list button,
+:root[data-tema="chiaro"] .ti-targa {
+  color: #0f172a;
+}
+:root[data-tema="chiaro"] .ti-input {
+  border-color: #94a3b8;
+}
+:root[data-tema="chiaro"] .ti-input::placeholder {
+  color: #94a3b8;
+}
+
+/* tabbar: barra chiara, testo scuro, scheda attiva in blu marcato */
+:root[data-tema="chiaro"] .tabbar {
+  background: #ffffff;
+  border-top-color: #cbd5e1;
+}
+:root[data-tema="chiaro"] .tabbar button {
+  color: #64748b;
+}
+:root[data-tema="chiaro"] .tabbar button.attivo {
+  color: #1d4ed8;
+}
+
+/* alcuni riquadri info usano fondi chiari fissi con bordo tenue:
+   sul chiaro irrobustisco il bordo perché non spariscano */
+:root[data-tema="chiaro"] .alpr-stato {
+  border-color: #cbd5e1;
+}
+
+/* --- Stato cabine: barra fissa (cerca + ordinamento) + sezioni per zona --- */
+.stato-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  /* sborda i padding laterali del .pannello → copre tutta la larghezza quando si appiccica */
+  margin: 0 -16px 6px;
+  padding: 12px 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--bordo);
+}
+.stato-cerca {
+  flex: 1;
+  min-width: 0;
+}
+.stato-ordina {
+  display: flex;
+  flex-shrink: 0;
+  border: 1px solid var(--bordo);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.stato-ordina button {
+  background: var(--card);
+  color: var(--muto);
+  border: none;
+  padding: 12px 14px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.stato-ordina button + button {
+  border-left: 1px solid var(--bordo);
+}
+.stato-ordina button.attivo {
+  background: #2563eb;
+  color: #fff;
+}
+.zona {
+  margin-top: 16px;
+}
+.zona-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  color: var(--testo);
+}
+.zona-count {
+  margin-left: auto;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--muto);
+  background: var(--card);
+  border: 1px solid var(--bordo);
+  border-radius: 999px;
+  padding: 2px 10px;
+}

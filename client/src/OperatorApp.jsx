@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from './api.js';
 import { getDeviceId, getDeviceNome } from './device.js';
+import { getModo, setModo, prossimoModo, temaEffettivo, etichettaModo } from './tema.js';
 import Ingresso from './components/Ingresso.jsx';
 import Uscita from './components/Uscita.jsx';
 import Stato from './components/Stato.jsx';
@@ -13,10 +14,36 @@ const TABS = [
   { id: 'uscita', label: 'Uscita', icon: '↩️' },
 ];
 
+// Applica il tema (auto/sole/notte) scrivendo data-tema su <html>; il CSS
+// chiaro è scopato su quell'attributo, quindi tocca solo l'app operatore
+// (l'admin non monta questo componente → resta scura).
+function useTema() {
+  const [modo, setModoState] = useState(getModo);
+  useEffect(() => {
+    const mq = window.matchMedia?.('(prefers-color-scheme: light)');
+    const applica = () => {
+      document.documentElement.dataset.tema = temaEffettivo(modo);
+    };
+    applica();
+    // in 'auto' segui i cambi chiaro/scuro del sistema in tempo reale
+    if (modo === 'auto' && mq) {
+      mq.addEventListener?.('change', applica);
+      return () => mq.removeEventListener?.('change', applica);
+    }
+  }, [modo]);
+  const cicla = () => {
+    const next = prossimoModo(modo);
+    setModo(next);
+    setModoState(next);
+  };
+  return { modo, cicla };
+}
+
 export default function OperatorApp() {
   // fase: 'loading' | 'setup' | 'pending' | 'revoked' | 'ok'
   const [fase, setFase] = useState('loading');
   const [tab, setTab] = useState('ingresso');
+  const { modo, cicla } = useTema();
 
   async function refresh() {
     const id = getDeviceId();
@@ -45,11 +72,22 @@ export default function OperatorApp() {
   if (fase === 'pending' || fase === 'revoked')
     return <Pending revoked={fase === 'revoked'} onApproved={() => setFase('ok')} />;
 
+  const tema = etichettaModo(modo);
+
   return (
     <div className="app">
       <header className="topbar">
         <img src="/lido-america.png" className="logo-topbar" alt="" />
         Parcheggio
+        <button
+          className="tema-toggle"
+          onClick={cicla}
+          aria-label={`Tema ${tema.testo}. Tocca per cambiare.`}
+          title={`Tema: ${tema.testo}`}
+        >
+          <span aria-hidden="true">{tema.icona}</span>
+          {tema.testo}
+        </button>
       </header>
       <main className="contenuto">
         {tab === 'ingresso' && <Ingresso />}
