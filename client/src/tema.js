@@ -8,7 +8,8 @@ const MODI = ['auto', 'chiaro', 'scuro'];
 
 export function getModo() {
   const v = localStorage.getItem(KEY);
-  return MODI.includes(v) ? v : 'auto';
+  // default 'chiaro': lo stabilimento è all'aperto → si parte leggibili al sole.
+  return MODI.includes(v) ? v : 'chiaro';
 }
 
 export function setModo(m) {

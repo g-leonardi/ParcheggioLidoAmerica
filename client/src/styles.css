@@ -42,6 +42,9 @@ body {
   font-weight: 800;
   letter-spacing: 0.5px;
   background: #0b1220;
+  /* la topbar è scura in ENTRAMBI i temi → testo sempre bianco,
+     altrimenti in tema chiaro erediterebbe --testo (scuro) e sparirebbe */
+  color: #fff;
 }
 
 .contenuto {
