@@ -28,7 +28,9 @@ export const api = {
   occupazione: () => fetch('/api/occupazione', { headers: devHeaders() }).then(json),
   alpr: (file) => {
     const fd = new FormData();
-    fd.append('upload', file);
+    // filename esplicito: il Blob normalizzato non ha .name → senza, il multipart
+    // perde nome/mimetype e il server può scartare il campo.
+    fd.append('upload', file, file.name || 'targa.jpg');
     return fetch('/api/alpr', { method: 'POST', headers: devHeaders(), body: fd }).then(json);
   },
 

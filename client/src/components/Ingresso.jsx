@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { api } from '../api.js';
+import { preparaFoto } from '../foto.js';
 import TargaInput from './TargaInput.jsx';
 
 // Esiti del lookup → aspetto e azione possibile dallo schermo grande.
@@ -54,7 +55,10 @@ export default function Ingresso() {
     setFase('ocr');
     setErrMsg('');
     setConfidenza(null);
-    const r = await api.alpr(file).catch(() => ({ ok: false, motivo: 'errore_rete' }));
+    // Normalizza (resize + orientamento + ricompressione) per non mandare all'ANPR
+    // foto giganti/ruotate dei telefoni vecchi → meno "nessuna targa".
+    const foto = await preparaFoto(file);
+    const r = await api.alpr(foto).catch(() => ({ ok: false, motivo: 'errore_rete' }));
     if (r.ok && r.targa && !r.sottoSoglia) {
       setConfidenza(r.confidenza);
       setTarga(r.targa);
@@ -203,6 +207,7 @@ function motivoLeggibile(m) {
     case 'alpr_non_configurato': return 'Riconoscimento foto non attivo — inserisci la targa a mano.';
     case 'nessuna_targa':        return 'Nessuna targa leggibile nella foto.';
     case 'foto_mancante':        return 'Foto non ricevuta.';
+    case 'foto_troppo_grande':   return 'Foto troppo grande — riprova (verrà ridotta in automatico).';
     case 'alpr_rete':            return 'Problema di rete con il riconoscimento.';
     case 'alpr_errore':          return 'Errore del servizio di riconoscimento.';
     case 'errore_rete':          return `${SERVER_GIU} (La targa si può comunque scrivere a mano quando torna la linea.)`;

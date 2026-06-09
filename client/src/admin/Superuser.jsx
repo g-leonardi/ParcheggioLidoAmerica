@@ -230,6 +230,19 @@ const MOTIVI = {
   cabina_non_trovata: 'Cabina non trovata.',
   non_trovata: 'Non trovata.',
 };
+// Costruisce la sigla cabina dal tipo scelto nel menu guidato, così l'operatore
+// non deve ricordare i codici (B/G/CB/CG/P). 'libero' = sigla digitata a mano
+// (spogliatoi SB/SG/SI/SL o casi non previsti).
+function costruisciSigla(tipo, colore, num) {
+  const n = String(num).trim().toUpperCase().replace(/\s/g, '');
+  if (!n) return '';
+  if (tipo === 'B') return `${n}B`;
+  if (tipo === 'G') return `${n}G`;
+  if (tipo === 'capannina') return `C${colore}${n}`; // CB1 / CG1
+  if (tipo === 'P') return `P${n}`;
+  return n; // libero
+}
+
 function messaggio(r) {
   if (r.motivo === 'targa_in_altra_cabina') return `Targa già assegnata alla cabina ${r.cabina}.`;
   return MOTIVI[r.motivo] || 'Operazione non riuscita.';
@@ -238,9 +251,14 @@ function messaggio(r) {
 function Anagrafica({ token, onAuthFail }) {
   const [cabine, setCabine] = useState(null);
   const [q, setQ] = useState('');
-  const [nNum, setNNum] = useState('');
+  const [tipo, setTipo] = useState('B'); // 'B' | 'G' | 'capannina' | 'P' | 'libero'
+  const [colore, setColore] = useState('B'); // solo per capannina: 'B' | 'G'
+  const [nNum, setNNum] = useState(''); // numero (o sigla intera se tipo='libero')
   const [nPosti, setNPosti] = useState(2);
   const [msg, setMsg] = useState('');
+
+  // La sigla è costruita dall'app dal tipo scelto → niente codici da ricordare.
+  const sigla = costruisciSigla(tipo, colore, nNum);
 
   async function carica() {
     const r = await api.cabine(token);
@@ -250,7 +268,8 @@ function Anagrafica({ token, onAuthFail }) {
   useEffect(() => { carica(); }, []);
 
   async function creaCabina() {
-    const r = await api.creaCabina(token, nNum, Number(nPosti));
+    if (!sigla) return;
+    const r = await api.creaCabina(token, sigla, Number(nPosti));
     if (r.ok) { setNNum(''); setNPosti(2); setMsg(''); carica(); }
     else setMsg(messaggio(r));
   }
@@ -269,12 +288,36 @@ function Anagrafica({ token, onAuthFail }) {
       <div className="muto piccolo ana-tot">{cabine.length} cabine · {totTarghe} targhe</div>
 
       <div className="ana-nuova">
+        <select
+          className="ti-input ana-tipo"
+          value={tipo}
+          onChange={(e) => setTipo(e.target.value)}
+          aria-label="Tipo di posizione"
+        >
+          <option value="B">⚪ Sezione Bianca</option>
+          <option value="G">🟡 Sezione Gialla</option>
+          <option value="capannina">🏕️ Capannina</option>
+          <option value="P">⛱️ Postazione</option>
+          <option value="libero">🚪 Altro / Spogliatoio</option>
+        </select>
+        {tipo === 'capannina' && (
+          <select
+            className="ti-input ana-colore"
+            value={colore}
+            onChange={(e) => setColore(e.target.value)}
+            aria-label="Colore capannina"
+          >
+            <option value="B">Bianca</option>
+            <option value="G">Gialla</option>
+          </select>
+        )}
         <input
           className="ti-input ana-num"
           value={nNum}
           onChange={(e) => setNNum(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && nNum.trim() && creaCabina()}
-          placeholder="Nuova cabina (es. G42)"
+          onKeyDown={(e) => e.key === 'Enter' && sigla && creaCabina()}
+          placeholder={tipo === 'libero' ? 'Sigla (es. SB)' : 'Numero'}
+          inputMode={tipo === 'libero' ? 'text' : 'numeric'}
           autoCapitalize="characters"
           autoCorrect="off"
         />
@@ -286,8 +329,13 @@ function Anagrafica({ token, onAuthFail }) {
           onChange={(e) => setNPosti(e.target.value)}
           aria-label="posti"
         />
-        <button className="btn-ok" onClick={creaCabina} disabled={!nNum.trim()}>Aggiungi</button>
+        <button className="btn-ok" onClick={creaCabina} disabled={!sigla}>Aggiungi</button>
       </div>
+      <p className="muto piccolo ana-hint">
+        {sigla
+          ? <>Verrà creata: <b>{sigla}</b> · {nPosti} {Number(nPosti) === 1 ? 'posto' : 'posti'}</>
+          : 'Scegli il tipo e inserisci il numero: la sigla la genera l’app.'}
+      </p>
       {msg && <div className="msg-err">{msg}</div>}
 
       <input

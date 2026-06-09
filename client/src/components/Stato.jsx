@@ -1,14 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
 
-// Le cabine sono "numero + lettera-zona" (es. 101B bianca, 101G gialla); i numeri
-// si ripetono tra zone, quindi le separiamo visivamente. Le speciali (SB/SG/SI/SL0)
-// hanno la lettera davanti; le capannine sono CB*/CG*.
+// Tipi di posizione (sigla → zona):
+//  • Sez. Bianca = numero+B (es. 25B)  → cabine affittate al mese
+//  • Sez. Gialla = numero+G (es. 32G)
+//  • Capannine   = CB*/CG*             → postazioni speciali (bianca/gialla)
+//  • Postazioni  = P+numero (es. P1)   → ombrellone+lettini, per i saltuari
+//  • Spogliatoi  = SB/SG/SI/SL…        → cabine più piccole (ex "Speciali")
 const ZONE = [
   { key: 'bianche', label: 'Bianche', icona: '⚪' },
   { key: 'gialle', label: 'Gialle', icona: '🟡' },
   { key: 'capannine', label: 'Capannine', icona: '🏕️' },
-  { key: 'speciali', label: 'Speciali', icona: '⭐' },
+  { key: 'postazioni', label: 'Postazioni', icona: '⛱️' },
+  { key: 'spogliatoi', label: 'Spogliatoi', icona: '🚪' },
 ];
 const CHIPS = [{ key: 'tutte', label: 'Tutte', icona: '' }, ...ZONE];
 
@@ -26,7 +30,8 @@ function zonaDi(cab) {
   if (zona === 'B') return 'bianche';
   if (zona === 'G') return 'gialle';
   if (zona === 'CB' || zona === 'CG') return 'capannine'; // CB=capannina bianca, CG=gialla
-  return 'speciali';
+  if (zona === 'P') return 'postazioni'; // P+numero = ombrellone+lettini
+  return 'spogliatoi'; // SB/SG/SI/SL… e qualsiasi altra sigla
 }
 
 // Colpo d'occhio sull'occupazione di tutte le cabine (es. 101B 2/2), raggruppate
@@ -53,7 +58,8 @@ export default function Stato() {
 
   // Conteggi per le chip (totali per zona, indipendenti dalla ricerca).
   const conteggi = useMemo(() => {
-    const m = { tutte: cabine.length, bianche: 0, gialle: 0, capannine: 0, speciali: 0 };
+    const m = { tutte: cabine.length };
+    for (const z of ZONE) m[z.key] = 0;
     for (const c of cabine) m[zonaDi(c.cabina)]++;
     return m;
   }, [cabine]);
@@ -164,7 +170,12 @@ export default function Stato() {
 
       {sel && (
         <div className="dettaglio-cabina">
-          <h3>Cabina {sel} · dentro ora</h3>
+          <div className="dettaglio-head">
+            <h3>Cabina {sel} · {dentro.length === 0 ? 'vuota' : `${dentro.length} dentro`}</h3>
+            <button className="dettaglio-close" onClick={() => setSel(null)} aria-label="Chiudi">
+              ×
+            </button>
+          </div>
           {dentro.length === 0 ? (
             <p className="muto">Nessuna auto dentro.</p>
           ) : (

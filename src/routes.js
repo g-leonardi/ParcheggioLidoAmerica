@@ -59,7 +59,14 @@ export default async function routes(app) {
     if (!alpr.configurato()) return reply.code(503).send({ ok: false, motivo: 'alpr_non_configurato' });
     const file = await req.file().catch(() => null);
     if (!file) return reply.code(400).send({ ok: false, motivo: 'foto_mancante' });
-    const buf = await file.toBuffer();
+    let buf;
+    try {
+      buf = await file.toBuffer();
+    } catch {
+      // Oltre il limite multipart: meglio dirlo chiaro che un 500 opaco.
+      return reply.code(413).send({ ok: false, motivo: 'foto_troppo_grande' });
+    }
+    if (file.truncated) return reply.code(413).send({ ok: false, motivo: 'foto_troppo_grande' });
     const r = await alpr.riconosci(buf, file.mimetype);
     if (!r.ok) return reply.code(422).send(r);
     const sottoSoglia = r.confidenza < alpr.CONFIDENCE_MIN;

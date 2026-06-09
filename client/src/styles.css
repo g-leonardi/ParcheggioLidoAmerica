@@ -448,18 +448,46 @@ body {
   cursor: pointer;
 }
 .cella.sel {
-  outline: 3px solid #fff;
+  /* --testo è chiaro in tema scuro e scuro in tema chiaro → il bordo di
+     selezione resta visibile sotto il sole (prima era #fff fisso = spariva). */
+  outline: 3px solid var(--testo);
   outline-offset: 2px;
 }
+/* Pannello "dentro ora": appiccicato in fondo allo scroll (sopra la tabbar),
+   così su mobile NON serve scrollare fino in fondo alla griglia per leggerlo. */
 .dettaglio-cabina {
-  margin-top: 18px;
+  position: sticky;
+  bottom: 0;
+  z-index: 6;
+  margin: 18px -16px 0;   /* sborda i padding del .pannello → larghezza piena */
   background: var(--card);
-  border-radius: 12px;
-  padding: 14px 16px;
+  border-top: 2px solid var(--bordo);
+  border-radius: 14px 14px 0 0;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
 }
-.dettaglio-cabina h3 {
-  margin: 0 0 10px;
+.dettaglio-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.dettaglio-head h3 {
+  margin: 0;
   font-size: 17px;
+}
+.dettaglio-close {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--bg);
+  color: var(--testo);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
 }
 .targhe-dentro {
   list-style: none;
@@ -468,6 +496,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-height: 38vh;
+  overflow-y: auto;
 }
 .targhe-dentro li {
   font-size: 19px;
@@ -880,9 +910,12 @@ body {
 
 /* --- Anagrafica (cabine + targhe) --- */
 .ana-tot { margin: -6px 0 12px; }
-.ana-nuova { display: flex; gap: 8px; margin-bottom: 6px; }
+.ana-nuova { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+.ana-nuova .ana-tipo { flex-basis: 100%; }   /* tipo posizione su riga propria */
+.ana-nuova .ana-colore { flex: 0 0 auto; min-width: 96px; }
 .ana-nuova .ana-num { flex: 1; min-width: 0; }
 .ana-nuova .ana-posti-input { width: 64px; text-align: center; padding-left: 6px; padding-right: 6px; }
+.ana-nuova select.ti-input { appearance: none; -webkit-appearance: none; background-image: none; }
 .ana-lista { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
 .ana-card { border: 1px solid var(--bordo); background: var(--card); border-radius: 12px; padding: 10px 12px; }
 .ana-card-head { display: flex; align-items: center; gap: 10px; }
@@ -905,6 +938,7 @@ body {
   border: none; background: var(--rosso); color: #fff; width: 18px; height: 18px;
   border-radius: 50%; font-size: 13px; line-height: 1; cursor: pointer; padding: 0;
 }
+.ana-hint { margin: 8px 0 0; line-height: 1.4; }
 .ana-addtarga { display: flex; gap: 8px; }
 .ana-addtarga .ti-input { flex: 1; min-width: 0; text-transform: uppercase; }
 .ana-addtarga .btn-ok { width: 48px; }

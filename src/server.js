@@ -6,8 +6,11 @@ import path from 'node:path';
 import routes from './routes.js';
 
 const app = Fastify({ logger: true });
-// Foto per ALPR: solo in memoria (mai su disco), max 5 MB.
-await app.register(fastifyMultipart, { limits: { fileSize: 5 * 1024 * 1024, files: 1 } });
+// Foto per ALPR: solo in memoria (mai su disco). 12 MB di margine perché i
+// telefoni vecchi scattano JPEG enormi: il client le ridimensiona, ma se quel
+// passo fallisce e manda l'originale, un limite troppo basso troncherebbe il
+// file → immagine corrotta → "nessuna targa".
+await app.register(fastifyMultipart, { limits: { fileSize: 12 * 1024 * 1024, files: 1 } });
 await app.register(routes);
 
 // In produzione serviamo la build statica del client dalla stessa porta (un solo servizio).
