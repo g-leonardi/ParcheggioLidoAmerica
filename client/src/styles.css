@@ -909,13 +909,17 @@ body {
 }
 
 /* --- Anagrafica (cabine + targhe) --- */
-.ana-tot { margin: -6px 0 12px; }
-.ana-nuova { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
-.ana-nuova .ana-tipo { flex-basis: 100%; }   /* tipo posizione su riga propria */
-.ana-nuova .ana-colore { flex: 0 0 auto; min-width: 96px; }
-.ana-nuova .ana-num { flex: 1; min-width: 0; }
-.ana-nuova .ana-posti-input { width: 64px; text-align: center; padding-left: 6px; padding-right: 6px; }
-.ana-nuova select.ti-input { appearance: none; -webkit-appearance: none; background-image: none; }
+.ana-tot { margin: 2px 0 0; }
+.ana-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.ana-head h2 { margin: 0; }
+.ana-nuova-btn {
+  flex: 0 0 auto; border: 1px solid var(--bordo); background: #0b1220; color: #fff;
+  border-radius: 10px; padding: 10px 14px; font-size: 15px; font-weight: 700; cursor: pointer;
+  white-space: nowrap;
+}
+.ana-nuova-btn:active { transform: scale(0.97); }
+/* ricerca sempre raggiungibile scorrendo la lista lunga */
+.ana-cerca { position: sticky; top: 0; z-index: 2; margin-top: 14px; }
 .ana-lista { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
 .ana-card { border: 1px solid var(--bordo); background: var(--card); border-radius: 12px; padding: 10px 12px; }
 .ana-card-head { display: flex; align-items: center; gap: 10px; }
@@ -942,6 +946,36 @@ body {
 .ana-addtarga { display: flex; gap: 8px; }
 .ana-addtarga .ti-input { flex: 1; min-width: 0; text-transform: uppercase; }
 .ana-addtarga .btn-ok { width: 48px; }
+
+/* --- Bottom-sheet: creazione cabina --- */
+.sheet-overlay {
+  position: fixed; inset: 0; z-index: 50;
+  background: rgba(0, 0, 0, 0.55);
+  display: flex; align-items: flex-end; justify-content: center;
+  animation: sheet-fade 0.18s ease;
+}
+.sheet {
+  width: 100%; max-width: 520px;
+  background: var(--card); border: 1px solid var(--bordo);
+  border-radius: 18px 18px 0 0;
+  padding: 16px 16px calc(20px + env(safe-area-inset-bottom));
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.45);
+  animation: sheet-up 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  max-height: 88vh; overflow-y: auto;
+}
+.sheet-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.sheet-head h3 { margin: 0; font-size: 19px; }
+.sheet-chiudi {
+  background: none; border: none; color: var(--muto);
+  font-size: 28px; line-height: 1; cursor: pointer; padding: 0 4px;
+}
+.sheet-label { display: block; margin: 12px 0 5px; font-size: 13px; color: var(--muto); }
+.sheet select.ti-input { appearance: none; -webkit-appearance: none; background-image: none; }
+.sheet-posti { margin-left: 0; }   /* override dell'allineamento a destra della card */
+.sheet-anteprima { margin: 14px 0 10px; line-height: 1.4; }
+.sheet .btn-grande { margin-top: 4px; }
+@keyframes sheet-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
 
 /* --- toggle tema in topbar (visibile in entrambi i temi: topbar resta scura) --- */
 .tema-toggle {

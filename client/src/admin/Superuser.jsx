@@ -251,14 +251,7 @@ function messaggio(r) {
 function Anagrafica({ token, onAuthFail }) {
   const [cabine, setCabine] = useState(null);
   const [q, setQ] = useState('');
-  const [tipo, setTipo] = useState('B'); // 'B' | 'G' | 'capannina' | 'P' | 'libero'
-  const [colore, setColore] = useState('B'); // solo per capannina: 'B' | 'G'
-  const [nNum, setNNum] = useState(''); // numero (o sigla intera se tipo='libero')
-  const [nPosti, setNPosti] = useState(2);
-  const [msg, setMsg] = useState('');
-
-  // La sigla è costruita dall'app dal tipo scelto → niente codici da ricordare.
-  const sigla = costruisciSigla(tipo, colore, nNum);
+  const [nuovaAperta, setNuovaAperta] = useState(false);
 
   async function carica() {
     const r = await api.cabine(token);
@@ -266,13 +259,6 @@ function Anagrafica({ token, onAuthFail }) {
     else onAuthFail();
   }
   useEffect(() => { carica(); }, []);
-
-  async function creaCabina() {
-    if (!sigla) return;
-    const r = await api.creaCabina(token, sigla, Number(nPosti));
-    if (r.ok) { setNNum(''); setNPosti(2); setMsg(''); carica(); }
-    else setMsg(messaggio(r));
-  }
 
   if (!cabine) return <div className="pannello"><p className="muto">…</p></div>;
 
@@ -284,62 +270,16 @@ function Anagrafica({ token, onAuthFail }) {
 
   return (
     <div className="pannello">
-      <h2>Cabine e targhe</h2>
-      <div className="muto piccolo ana-tot">{cabine.length} cabine · {totTarghe} targhe</div>
-
-      <div className="ana-nuova">
-        <select
-          className="ti-input ana-tipo"
-          value={tipo}
-          onChange={(e) => setTipo(e.target.value)}
-          aria-label="Tipo di posizione"
-        >
-          <option value="B">⚪ Sezione Bianca</option>
-          <option value="G">🟡 Sezione Gialla</option>
-          <option value="capannina">🏕️ Capannina</option>
-          <option value="P">⛱️ Postazione</option>
-          <option value="libero">🚪 Altro / Spogliatoio</option>
-        </select>
-        {tipo === 'capannina' && (
-          <select
-            className="ti-input ana-colore"
-            value={colore}
-            onChange={(e) => setColore(e.target.value)}
-            aria-label="Colore capannina"
-          >
-            <option value="B">Bianca</option>
-            <option value="G">Gialla</option>
-          </select>
-        )}
-        <input
-          className="ti-input ana-num"
-          value={nNum}
-          onChange={(e) => setNNum(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && sigla && creaCabina()}
-          placeholder={tipo === 'libero' ? 'Sigla (es. SB)' : 'Numero'}
-          inputMode={tipo === 'libero' ? 'text' : 'numeric'}
-          autoCapitalize="characters"
-          autoCorrect="off"
-        />
-        <input
-          className="ti-input ana-posti-input"
-          type="number"
-          min="1"
-          value={nPosti}
-          onChange={(e) => setNPosti(e.target.value)}
-          aria-label="posti"
-        />
-        <button className="btn-ok" onClick={creaCabina} disabled={!sigla}>Aggiungi</button>
+      <div className="ana-head">
+        <div>
+          <h2>Cabine e targhe</h2>
+          <div className="muto piccolo ana-tot">{cabine.length} cabine · {totTarghe} targhe</div>
+        </div>
+        <button className="ana-nuova-btn" onClick={() => setNuovaAperta(true)}>+ Nuova</button>
       </div>
-      <p className="muto piccolo ana-hint">
-        {sigla
-          ? <>Verrà creata: <b>{sigla}</b> · {nPosti} {Number(nPosti) === 1 ? 'posto' : 'posti'}</>
-          : 'Scegli il tipo e inserisci il numero: la sigla la genera l’app.'}
-      </p>
-      {msg && <div className="msg-err">{msg}</div>}
 
       <input
-        className="ti-input cerca"
+        className="ti-input cerca ana-cerca"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder="Cerca cabina o targa…"
@@ -348,7 +288,7 @@ function Anagrafica({ token, onAuthFail }) {
       />
 
       {viste.length === 0 ? (
-        <p className="muto">{filtro ? 'Nessuna corrispondenza.' : 'Nessuna cabina. Aggiungine una sopra o importa il CSV.'}</p>
+        <p className="muto">{filtro ? 'Nessuna corrispondenza.' : 'Nessuna cabina. Tocca “+ Nuova” o importa il CSV.'}</p>
       ) : (
         <div className="ana-lista">
           {viste.map((c) => (
@@ -356,6 +296,104 @@ function Anagrafica({ token, onAuthFail }) {
           ))}
         </div>
       )}
+
+      {nuovaAperta && (
+        <ModaleNuovaCabina
+          token={token}
+          onChiudi={() => setNuovaAperta(false)}
+          onCreata={() => { setNuovaAperta(false); carica(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function ModaleNuovaCabina({ token, onChiudi, onCreata }) {
+  const [tipo, setTipo] = useState('B'); // 'B' | 'G' | 'capannina' | 'P' | 'libero'
+  const [colore, setColore] = useState('B'); // solo per capannina: 'B' | 'G'
+  const [nNum, setNNum] = useState(''); // numero (o sigla intera se tipo='libero')
+  const [nPosti, setNPosti] = useState(2);
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  // La sigla è costruita dall'app dal tipo scelto → niente codici da ricordare.
+  const sigla = costruisciSigla(tipo, colore, nNum);
+
+  async function crea() {
+    if (!sigla || busy) return;
+    setBusy(true);
+    const r = await api.creaCabina(token, sigla, Number(nPosti));
+    setBusy(false);
+    if (r.ok) onCreata();
+    else setMsg(messaggio(r));
+  }
+
+  return (
+    <div className="sheet-overlay" onClick={onChiudi}>
+      <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Nuova cabina">
+        <div className="sheet-head">
+          <h3>Nuova cabina</h3>
+          <button className="sheet-chiudi" onClick={onChiudi} aria-label="Chiudi">×</button>
+        </div>
+
+        <label className="sheet-label">Tipo di posizione</label>
+        <select
+          className="ti-input"
+          value={tipo}
+          onChange={(e) => { setTipo(e.target.value); setMsg(''); }}
+        >
+          <option value="B">⚪ Sezione Bianca</option>
+          <option value="G">🟡 Sezione Gialla</option>
+          <option value="capannina">🏕️ Capannina</option>
+          <option value="P">⛱️ Postazione</option>
+          <option value="libero">🚪 Altro / Spogliatoio</option>
+        </select>
+
+        {tipo === 'capannina' && (
+          <>
+            <label className="sheet-label">Colore capannina</label>
+            <select
+              className="ti-input"
+              value={colore}
+              onChange={(e) => setColore(e.target.value)}
+            >
+              <option value="B">Bianca</option>
+              <option value="G">Gialla</option>
+            </select>
+          </>
+        )}
+
+        <label className="sheet-label">{tipo === 'libero' ? 'Sigla' : 'Numero'}</label>
+        <input
+          className="ti-input"
+          value={nNum}
+          onChange={(e) => { setNNum(e.target.value); setMsg(''); }}
+          onKeyDown={(e) => e.key === 'Enter' && sigla && crea()}
+          placeholder={tipo === 'libero' ? 'es. SB' : 'es. 12'}
+          inputMode={tipo === 'libero' ? 'text' : 'numeric'}
+          autoCapitalize="characters"
+          autoCorrect="off"
+          autoFocus
+        />
+
+        <label className="sheet-label">Posti</label>
+        <div className="ana-posti sheet-posti">
+          <button onClick={() => setNPosti((n) => Math.max(1, n - 1))} disabled={nPosti <= 1}>−</button>
+          <span>{nPosti} <small>{nPosti === 1 ? 'posto' : 'posti'}</small></span>
+          <button onClick={() => setNPosti((n) => n + 1)}>+</button>
+        </div>
+
+        <p className="muto piccolo sheet-anteprima">
+          {sigla
+            ? <>Verrà creata: <b>{sigla}</b> · {nPosti} {nPosti === 1 ? 'posto' : 'posti'}</>
+            : 'Scegli il tipo e inserisci il numero: la sigla la genera l’app.'}
+        </p>
+        {msg && <div className="msg-err">{msg}</div>}
+
+        <button className="btn-grande" onClick={crea} disabled={!sigla || busy}>
+          {busy ? 'Creazione…' : 'CREA CABINA'}
+        </button>
+      </div>
     </div>
   );
 }
