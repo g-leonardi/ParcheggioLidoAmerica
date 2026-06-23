@@ -22,7 +22,7 @@ export default function Setup({ onDone }) {
       <img src="/lido-america.png" className="logo-lido" alt="Lido America" />
       <h2>Configura postazione</h2>
       <p className="muto">
-        Dai un nome a questo dispositivo. Il responsabile dovrà approvarlo una volta sola.
+        Dai un nome a questo dispositivo. Il manager dovrà approvarlo una volta sola.
       </p>
       <input
         className="ti-input"

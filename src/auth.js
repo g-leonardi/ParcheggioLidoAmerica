@@ -95,7 +95,7 @@ export function loginSuperuser(password) {
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
     return { ok: false, motivo: 'password_errata' };
   }
-  return { ok: true, token: signToken({ role: 'super', exp: Date.now() + 12 * 3600 * 1000 }) };
+  return { ok: true, token: signToken({ role: 'super', exp: Date.now() + 30 * 24 * 3600 * 1000 }) };
 }
 
 export async function requireSuperuser(req, reply) {

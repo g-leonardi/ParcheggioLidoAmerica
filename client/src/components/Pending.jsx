@@ -34,8 +34,8 @@ export default function Pending({ revoked, onApproved }) {
       </p>
       <p className="muto">
         {revocato
-          ? 'Questo dispositivo è stato disabilitato. Contatta il responsabile.'
-          : 'Il responsabile deve approvare questo dispositivo. La schermata si aggiorna da sola.'}
+          ? 'Questo dispositivo è stato disabilitato. Contatta il manager.'
+          : 'Il manager deve approvare questo dispositivo. La schermata si aggiorna da sola.'}
       </p>
       <button
         className="btn-testo"

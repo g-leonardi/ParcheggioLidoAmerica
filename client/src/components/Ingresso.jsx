@@ -11,6 +11,19 @@ const ESITI = {
   sconosciuta: { cls: 'grigio', titolo: 'TARGA NON REGISTRATA',  azione: null },
 };
 
+// Diagnostica latenza ALPR. Attivala sul telefono di prova aprendo l'app con
+//   ?debug=1   (resta attiva finché non apri con ?debug=0)
+// Mostra il dettaglio dei tempi (prep, peso foto, upload, cloud) sotto l'esito,
+// così si vede sul campo dove vanno i 7 secondi. Gli operatori non la vedono.
+const DEBUG = (() => {
+  try {
+    const q = new URLSearchParams(location.search).get('debug');
+    if (q === '1') localStorage.setItem('parcheggio.debug', '1');
+    if (q === '0') localStorage.removeItem('parcheggio.debug');
+    return localStorage.getItem('parcheggio.debug') === '1';
+  } catch { return false; }
+})();
+
 // fase = 'home' | 'ocr' | 'manuale' | 'lookup' | 'fatto'
 export default function Ingresso() {
   const [fase, setFase] = useState('home');
@@ -19,6 +32,7 @@ export default function Ingresso() {
   const [risultato, setRisultato] = useState(null);   // { azione: 'ingresso'|'uscita', targa, cabina }
   const [errMsg, setErrMsg] = useState('');           // OCR fallito o server non raggiungibile
   const [confidenza, setConfidenza] = useState(null); // per badge informativo
+  const [diag, setDiag] = useState('');               // riga tempi (solo se DEBUG)
   const fileRef = useRef(null);
 
   function reset() {
@@ -28,6 +42,7 @@ export default function Ingresso() {
     setRisultato(null);
     setErrMsg('');
     setConfidenza(null);
+    setDiag('');
     if (fileRef.current) fileRef.current.value = '';
   }
 
@@ -57,8 +72,20 @@ export default function Ingresso() {
     setConfidenza(null);
     // Normalizza (resize + orientamento + ricompressione) per non mandare all'ANPR
     // foto giganti/ruotate dei telefoni vecchi → meno "nessuna targa".
+    const tPrep = performance.now();
     const foto = await preparaFoto(file);
+    const msPrep = Math.round(performance.now() - tPrep);
+    const kb = Math.round((foto.size || file.size) / 1024);
+
+    const tNet = performance.now();
     const r = await api.alpr(foto).catch(() => ({ ok: false, motivo: 'errore_rete' }));
+    const msNet = Math.round(performance.now() - tNet);
+    if (DEBUG) {
+      // msNet = upload + parsing server + cloud + risposta. msProvider = solo cloud.
+      // Quindi upload telefono→server ≈ msNet − msProvider (la tratta ballerina).
+      const cloud = r.msProvider ?? 0;
+      setDiag(`prep ${msPrep}ms · foto ${kb}KB · upload ~${Math.max(0, msNet - cloud)}ms · cloud ${cloud}ms · totale ${msPrep + msNet}ms`);
+    }
     if (r.ok && r.targa && !r.sottoSoglia) {
       setConfidenza(r.confidenza);
       setTarga(r.targa);
@@ -127,6 +154,7 @@ export default function Ingresso() {
         {confidenza != null && (
           <div className="ocr-mini">📷 letta dalla foto · {Math.round(confidenza * 100)}%</div>
         )}
+        {DEBUG && diag && <div className="ocr-mini" style={{ opacity: 0.7 }}>⏱ {diag}</div>}
         {cfg.azione ? (
           <>
             <button className="btn-grande conferma" onClick={conferma}>{labelConferma}</button>
@@ -153,6 +181,7 @@ export default function Ingresso() {
       <div className="pannello">
         <h2>Inserimento manuale</h2>
         {errMsg && <div className="errore">{errMsg}</div>}
+        {DEBUG && diag && <div className="ocr-mini" style={{ opacity: 0.7 }}>⏱ {diag}</div>}
         <TargaInput
           value={targa}
           onChange={setTarga}

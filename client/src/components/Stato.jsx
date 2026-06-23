@@ -2,15 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
 
 // Tipi di posizione (sigla → zona):
-//  • Sez. Bianca = numero+B (es. 25B)  → cabine affittate al mese
-//  • Sez. Gialla = numero+G (es. 32G)
-//  • Capannine   = CB*/CG*             → postazioni speciali (bianca/gialla)
-//  • Postazioni  = P+numero (es. P1)   → ombrellone+lettini, per i saltuari
-//  • Spogliatoi  = SB/SG/SI/SL…        → cabine più piccole (ex "Speciali")
+//  • Bianco     = numero+B (es. 25B)  → cabine affittate al mese
+//  • Giallo     = numero+G (es. 32G)
+//  • Postazioni = P+numero (es. P1) e Capannine CB*/CG* → accorpati in un'unica zona
+//  • Spogliatoi = SB/SG/SI/SL…        → cabine più piccole (ex "Speciali")
+//  • VIP        = (assegnata dall'admin, non dalla sigla — wiring da fare)
+// Le VIP esistono (si creano in admin) ma NON si mostrano lato operatore:
+// niente chip qui e vengono filtrate dalla griglia/conteggi (vedi cabineVis).
 const ZONE = [
-  { key: 'bianche', label: 'Bianche', icona: '⚪' },
-  { key: 'gialle', label: 'Gialle', icona: '🟡' },
-  { key: 'capannine', label: 'Capannine', icona: '🏕️' },
+  { key: 'bianche', label: 'Bianco', icona: '⚪' },
+  { key: 'gialle', label: 'Giallo', icona: '🟡' },
   { key: 'postazioni', label: 'Postazioni', icona: '⛱️' },
   { key: 'spogliatoi', label: 'Spogliatoi', icona: '🚪' },
 ];
@@ -26,11 +27,14 @@ function parseCab(cab) {
 }
 
 function zonaDi(cab) {
+  // VIP: il wizard crea queste cabine con sigla "VIP <NOME>" (il numero è un nome).
+  // Riconosciute dal prefisso, prima del parsing numerico.
+  if (cab.toUpperCase().startsWith('VIP ')) return 'vip';
   const { zona } = parseCab(cab);
   if (zona === 'B') return 'bianche';
   if (zona === 'G') return 'gialle';
-  if (zona === 'CB' || zona === 'CG') return 'capannine'; // CB=capannina bianca, CG=gialla
-  if (zona === 'P') return 'postazioni'; // P+numero = ombrellone+lettini
+  // Postazioni (P+numero) e Capannine (CB/CG) ora in un'unica zona "Postazioni".
+  if (zona === 'P' || zona === 'CB' || zona === 'CG') return 'postazioni';
   return 'spogliatoi'; // SB/SG/SI/SL… e qualsiasi altra sigla
 }
 
@@ -56,19 +60,22 @@ export default function Stato() {
 
   const dentro = sel ? presenti.filter((p) => p.cabina === sel).map((p) => p.targa) : [];
 
+  // Base lato operatore: tutte le cabine TRANNE le VIP (nascoste qui).
+  const cabineVis = useMemo(() => cabine.filter((c) => zonaDi(c.cabina) !== 'vip'), [cabine]);
+
   // Conteggi per le chip (totali per zona, indipendenti dalla ricerca).
   const conteggi = useMemo(() => {
-    const m = { tutte: cabine.length };
+    const m = { tutte: cabineVis.length };
     for (const z of ZONE) m[z.key] = 0;
-    for (const c of cabine) m[zonaDi(c.cabina)]++;
+    for (const c of cabineVis) m[zonaDi(c.cabina)]++;
     return m;
-  }, [cabine]);
+  }, [cabineVis]);
 
   const gruppi = useMemo(() => {
     const filtro = q.trim().toUpperCase();
     const visibili = filtro
-      ? cabine.filter((c) => c.cabina.toUpperCase().includes(filtro))
-      : cabine;
+      ? cabineVis.filter((c) => c.cabina.toUpperCase().includes(filtro))
+      : cabineVis;
     const cmp =
       ordine === 'occupazione'
         ? (a, b) => a.disponibili - b.disponibili || parseCab(a.cabina).num - parseCab(b.cabina).num
@@ -76,7 +83,7 @@ export default function Stato() {
             const pa = parseCab(a.cabina);
             const pb = parseCab(b.cabina);
             // zona-prima poi numero: dentro un gruppo monocolore equivale all'ordine
-            // numerico; nelle Capannine/Speciali tiene insieme i colori (CB… poi CG…).
+            // numerico; in Postazioni tiene insieme le sigle (CB… CG… poi P…).
             return (
               pa.zona.localeCompare(pb.zona) || pa.num - pb.num || a.cabina.localeCompare(b.cabina)
             );
@@ -85,7 +92,7 @@ export default function Stato() {
     return zoneDaMostrare
       .map((z) => ({ ...z, celle: visibili.filter((c) => zonaDi(c.cabina) === z.key).sort(cmp) }))
       .filter((g) => g.celle.length > 0);
-  }, [cabine, q, zonaSel, ordine]);
+  }, [cabineVis, q, zonaSel, ordine]);
 
   const totVisibili = gruppi.reduce((n, g) => n + g.celle.length, 0);
 
@@ -96,10 +103,12 @@ export default function Stato() {
       <div className="stato-toolbar">
         <input
           className="ti-input cerca stato-cerca"
-          inputMode="numeric"
-          placeholder="Cerca cabina…"
+          placeholder="Cerca"
           value={q}
           onChange={(e) => setQ(e.target.value)}
+          autoCapitalize="characters"
+          autoCorrect="off"
+          spellCheck={false}
         />
 
         <div className="stato-chips" role="group" aria-label="Filtra per zona">

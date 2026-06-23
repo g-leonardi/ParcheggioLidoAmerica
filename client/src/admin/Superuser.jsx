@@ -3,15 +3,20 @@ import { api } from '../api.js';
 
 const K_TOKEN = 'parcheggio.superToken';
 
+// Token in localStorage (non sessionStorage): deve sopravvivere alla chiusura
+// della PWA. La PWA installata da Chrome viene chiusa dall'OS quando va in
+// background; con sessionStorage il token spariva e l'admin doveva rifare login
+// di continuo. localStorage persiste finché non si fa "Esci". La scadenza vera
+// la decide il server (token firmato, 30 giorni — vedi src/auth.js).
 export default function Superuser() {
-  const [token, setToken] = useState(sessionStorage.getItem(K_TOKEN) || '');
+  const [token, setToken] = useState(localStorage.getItem(K_TOKEN) || '');
 
   function setSession(t) {
-    sessionStorage.setItem(K_TOKEN, t);
+    localStorage.setItem(K_TOKEN, t);
     setToken(t);
   }
   function logout() {
-    sessionStorage.removeItem(K_TOKEN);
+    localStorage.removeItem(K_TOKEN);
     setToken('');
   }
 
@@ -32,7 +37,7 @@ function Login({ onToken }) {
   return (
     <div className="pannello centro-col">
       <img src="/lido-america.png" className="logo-lido" alt="Lido America" />
-      <h2>Area responsabile</h2>
+      <h2>Area manager</h2>
       <input
         type="password"
         className="ti-input"
@@ -58,7 +63,7 @@ function Dashboard({ token, onLogout }) {
     <div className="app">
       <header className="topbar">
         <img src="/lido-america.png" className="logo-topbar" alt="" />
-        Responsabile
+        Manager
         <button className="logout" onClick={onLogout}>
           Esci
         </button>
@@ -223,30 +228,43 @@ function Dispositivi({ token, onAuthFail }) {
 
 const MOTIVI = {
   gia_esistente: 'Cabina già esistente.',
-  posti_non_validi: 'Numero di posti non valido.',
+  posti_non_validi: 'Numero di ingressi non valido.',
   numero_mancante: 'Indica il nome della cabina.',
   gia_presente: 'Targa già presente in questa cabina.',
   targa_non_valida: 'Targa non valida (troppo corta).',
   cabina_non_trovata: 'Cabina non trovata.',
   non_trovata: 'Non trovata.',
 };
-// Costruisce la sigla cabina dal tipo scelto nel menu guidato, così l'operatore
-// non deve ricordare i codici (B/G/CB/CG/P). 'libero' = sigla digitata a mano
-// (spogliatoi SB/SG/SI/SL o casi non previsti).
-function costruisciSigla(tipo, colore, num) {
+// Costruisce la sigla cabina dalla categoria scelta nel menu guidato, così
+// l'admin non deve ricordare i codici (B/G/CB/CG/P).
+//  • 'B'/'G'        → 25B / 32G
+//  • 'postazioni'   → P12 (Postazione) oppure CB1/CG1 (Capannina): in creazione
+//    resta la distinzione (sottoP); in Stato sono accorpate in un'unica zona.
+//  • 'libero'       → sigla digitata a mano (spogliatoi SB/SG/SI/SL…)
+//  • 'vip'          → il "numero" è un NOME libero → sigla "VIP <NOME>", che
+//    lo Stato riconosce dal prefisso e mette nella zona VIP.
+function costruisciSigla(categoria, sottoP, num) {
+  if (categoria === 'vip') {
+    const nome = String(num).trim().replace(/\s+/g, ' ').toUpperCase();
+    return nome ? `VIP ${nome}` : '';
+  }
   const n = String(num).trim().toUpperCase().replace(/\s/g, '');
   if (!n) return '';
-  if (tipo === 'B') return `${n}B`;
-  if (tipo === 'G') return `${n}G`;
-  if (tipo === 'capannina') return `C${colore}${n}`; // CB1 / CG1
-  if (tipo === 'P') return `P${n}`;
-  return n; // libero
+  if (categoria === 'B') return `${n}B`;
+  if (categoria === 'G') return `${n}G`;
+  if (categoria === 'postazioni') return `${sottoP}${n}`; // P12 / CB1 / CG1
+  if (categoria === 'libero') return n;
+  return '';
 }
 
 function messaggio(r) {
   if (r.motivo === 'targa_in_altra_cabina') return `Targa già assegnata alla cabina ${r.cabina}.`;
   return MOTIVI[r.motivo] || 'Operazione non riuscita.';
 }
+
+// Display: il prefisso tecnico "VIP " serve solo per la categoria, non si mostra.
+// Così "VIP GIUSEPPE" compare come "GIUSEPPE". La sigla reale (chiave) resta intatta.
+const nomeVisibile = (numero) => (numero.startsWith('VIP ') ? numero.slice(4) : numero);
 
 function Anagrafica({ token, onAuthFail }) {
   const [cabine, setCabine] = useState(null);
@@ -263,8 +281,23 @@ function Anagrafica({ token, onAuthFail }) {
   if (!cabine) return <div className="pannello"><p className="muto">…</p></div>;
 
   const filtro = q.trim().toUpperCase().replace(/\s/g, '');
+  const norm = (s) => s.toUpperCase().replace(/\s/g, '');
+  // Rank: 0 = cabina esatta, 1 = cabina parziale, 2 = match solo nelle targhe.
+  // Così cercando "2B" esce PRIMA la cabina 2B, poi le parziali, poi le cabine
+  // che hanno "2B" tra le targhe. (sort stabile → ordine naturale a parità di rank)
+  const rank = (c) => {
+    const n = norm(c.numero);
+    if (n === filtro) return 0;
+    if (n.includes(filtro)) return 1;
+    if (c.targhe.some((t) => norm(t).includes(filtro))) return 2;
+    return -1;
+  };
   const viste = filtro
-    ? cabine.filter((c) => c.numero.toUpperCase().includes(filtro) || c.targhe.some((t) => t.includes(filtro)))
+    ? cabine
+        .map((c) => [c, rank(c)])
+        .filter(([, r]) => r >= 0)
+        .sort((a, b) => a[1] - b[1])
+        .map(([c]) => c)
     : cabine;
   const totTarghe = cabine.reduce((s, c) => s + c.targhe.length, 0);
 
@@ -272,7 +305,7 @@ function Anagrafica({ token, onAuthFail }) {
     <div className="pannello">
       <div className="ana-head">
         <div>
-          <h2>Cabine e targhe</h2>
+          <h2>Parking Manager</h2>
           <div className="muto piccolo ana-tot">{cabine.length} cabine · {totTarghe} targhe</div>
         </div>
         <button className="ana-nuova-btn" onClick={() => setNuovaAperta(true)}>+ Nuova</button>
@@ -309,15 +342,18 @@ function Anagrafica({ token, onAuthFail }) {
 }
 
 function ModaleNuovaCabina({ token, onChiudi, onCreata }) {
-  const [tipo, setTipo] = useState('B'); // 'B' | 'G' | 'capannina' | 'P' | 'libero'
-  const [colore, setColore] = useState('B'); // solo per capannina: 'B' | 'G'
-  const [nNum, setNNum] = useState(''); // numero (o sigla intera se tipo='libero')
+  const [categoria, setCategoria] = useState(''); // '' | 'B' | 'G' | 'postazioni' | 'libero' | 'vip'
+  const [sottoP, setSottoP] = useState('P');       // solo postazioni: 'P' | 'CB' | 'CG'
+  const [nNum, setNNum] = useState('');             // numero, sigla (libero) o nome (vip)
   const [nPosti, setNPosti] = useState(2);
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
 
-  // La sigla è costruita dall'app dal tipo scelto → niente codici da ricordare.
-  const sigla = costruisciSigla(tipo, colore, nNum);
+  // La sigla è costruita dall'app dalla categoria scelta → niente codici da ricordare.
+  const sigla = costruisciSigla(categoria, sottoP, nNum);
+  const isVip = categoria === 'vip';
+  const isLibero = categoria === 'libero';
+  const labelCampo = isVip ? 'Nome' : isLibero ? 'Sigla' : 'Numero';
 
   async function crea() {
     if (!sigla || busy) return;
@@ -330,63 +366,65 @@ function ModaleNuovaCabina({ token, onChiudi, onCreata }) {
 
   return (
     <div className="sheet-overlay" onClick={onChiudi}>
-      <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Nuova cabina">
+      <div className="sheet" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Nuovo inserimento">
         <div className="sheet-head">
-          <h3>Nuova cabina</h3>
+          <h3>Nuovo inserimento</h3>
           <button className="sheet-chiudi" onClick={onChiudi} aria-label="Chiudi">×</button>
         </div>
 
-        <label className="sheet-label">Tipo di posizione</label>
         <select
           className="ti-input"
-          value={tipo}
-          onChange={(e) => { setTipo(e.target.value); setMsg(''); }}
+          value={categoria}
+          onChange={(e) => { setCategoria(e.target.value); setNNum(''); setMsg(''); }}
         >
-          <option value="B">⚪ Sezione Bianca</option>
-          <option value="G">🟡 Sezione Gialla</option>
-          <option value="capannina">🏕️ Capannina</option>
-          <option value="P">⛱️ Postazione</option>
-          <option value="libero">🚪 Altro / Spogliatoio</option>
+          <option value="" disabled>Seleziona categoria</option>
+          <option value="B">⚪ Bianco</option>
+          <option value="G">🟡 Giallo</option>
+          <option value="postazioni">⛱️ Postazioni</option>
+          <option value="libero">🚪 Spogliatoi</option>
+          <option value="vip">⭐ VIP</option>
         </select>
 
-        {tipo === 'capannina' && (
+        {categoria === 'postazioni' && (
           <>
-            <label className="sheet-label">Colore capannina</label>
+            <label className="sheet-label">Tipo postazione</label>
             <select
               className="ti-input"
-              value={colore}
-              onChange={(e) => setColore(e.target.value)}
+              value={sottoP}
+              onChange={(e) => setSottoP(e.target.value)}
             >
-              <option value="B">Bianca</option>
-              <option value="G">Gialla</option>
+              <option value="P">⛱️ Postazione (P)</option>
+              <option value="CB">🏕️ Capannina bianca (CB)</option>
+              <option value="CG">🏕️ Capannina gialla (CG)</option>
             </select>
           </>
         )}
 
-        <label className="sheet-label">{tipo === 'libero' ? 'Sigla' : 'Numero'}</label>
+        <label className="sheet-label">{labelCampo}</label>
         <input
           className="ti-input"
           value={nNum}
           onChange={(e) => { setNNum(e.target.value); setMsg(''); }}
           onKeyDown={(e) => e.key === 'Enter' && sigla && crea()}
-          placeholder={tipo === 'libero' ? 'es. SB' : 'es. 12'}
-          inputMode={tipo === 'libero' ? 'text' : 'numeric'}
-          autoCapitalize="characters"
+          placeholder={isVip ? 'es. Giuseppe Leonardi' : isLibero ? 'es. SB' : 'es. 12'}
+          inputMode={isVip || isLibero ? 'text' : 'numeric'}
+          autoCapitalize={isVip ? 'words' : 'characters'}
           autoCorrect="off"
           autoFocus
         />
 
-        <label className="sheet-label">Posti</label>
         <div className="ana-posti sheet-posti">
           <button onClick={() => setNPosti((n) => Math.max(1, n - 1))} disabled={nPosti <= 1}>−</button>
-          <span>{nPosti} <small>{nPosti === 1 ? 'posto' : 'posti'}</small></span>
+          <span>{nPosti} <small>{nPosti === 1 ? 'ingresso' : 'ingressi'}</small></span>
           <button onClick={() => setNPosti((n) => n + 1)}>+</button>
         </div>
 
         <p className="muto piccolo sheet-anteprima">
-          {sigla
-            ? <>Verrà creata: <b>{sigla}</b> · {nPosti} {nPosti === 1 ? 'posto' : 'posti'}</>
-            : 'Scegli il tipo e inserisci il numero: la sigla la genera l’app.'}
+          {!categoria
+            ? 'Scegli prima una categoria.'
+            : sigla
+              ? <>Verrà creata: <b>{sigla}</b> · {nPosti} {nPosti === 1 ? 'ingresso' : 'ingressi'}</>
+              : `Inserisci ${isVip ? 'il nome' : isLibero ? 'la sigla' : 'il numero'}: la sigla la genera l’app.`}
         </p>
         {msg && <div className="msg-err">{msg}</div>}
 
@@ -405,6 +443,9 @@ function CardCabina({ cabina, token, onChange }) {
 
   async function setP(nuovo) {
     if (nuovo < 1) return;
+    // Modificare gli ingressi è un'azione delicata quanto l'eliminazione → conferma.
+    const verbo = nuovo > posti ? 'Aumentare' : 'Ridurre';
+    if (!confirm(`${verbo} gli ingressi di ${cabina.numero} da ${posti} a ${nuovo}?`)) return;
     const prima = posti;
     setPosti(nuovo);
     setErr('');
@@ -428,10 +469,12 @@ function CardCabina({ cabina, token, onChange }) {
   return (
     <div className="ana-card">
       <div className="ana-card-head">
-        <span className="ana-cab">{cabina.numero}</span>
+        <span className="ana-cab">
+          {cabina.numero.startsWith('VIP ') && '⭐ '}{nomeVisibile(cabina.numero)}
+        </span>
         <div className="ana-posti">
           <button onClick={() => setP(posti - 1)} disabled={posti <= 1}>−</button>
-          <span>{posti} <small>posti</small></span>
+          <span>{posti} <small>{posti === 1 ? 'ingresso' : 'ingressi'}</small></span>
           <button onClick={() => setP(posti + 1)}>+</button>
         </div>
         <button className="ana-del" onClick={elimina} title="Elimina cabina">🗑</button>

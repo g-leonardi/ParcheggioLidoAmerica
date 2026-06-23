@@ -67,12 +67,17 @@ export default async function routes(app) {
       return reply.code(413).send({ ok: false, motivo: 'foto_troppo_grande' });
     }
     if (file.truncated) return reply.code(413).send({ ok: false, motivo: 'foto_troppo_grande' });
+    // Diagnostica: ms spesi nel solo roundtrip verso Plate Recognizer (la tratta
+    // server→cloud) e byte effettivamente ricevuti. Il client li usa per separare
+    // questo costo da quello dell'upload telefono→server sulla connessione ballerina.
+    const tProv = performance.now();
     const r = await alpr.riconosci(buf, file.mimetype);
-    if (!r.ok) return reply.code(422).send(r);
+    const msProvider = Math.round(performance.now() - tProv);
+    if (!r.ok) return reply.code(422).send({ ...r, msProvider, bytes: buf.length });
     const sottoSoglia = r.confidenza < alpr.CONFIDENCE_MIN;
     // Lookup non scrive: l'operatore vede dove finisce prima di confermare.
     const info = r.targa ? core.lookup(r.targa) : null;
-    return { ok: true, targa: r.targa, confidenza: r.confidenza, sottoSoglia, lookup: info, mock: r.mock };
+    return { ok: true, targa: r.targa, confidenza: r.confidenza, sottoSoglia, lookup: info, mock: r.mock, msProvider, bytes: buf.length };
   });
 
   // --- Super user ---

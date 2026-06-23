@@ -73,12 +73,16 @@ export default function OperatorApp() {
     return <Pending revoked={fase === 'revoked'} onApproved={() => setFase('ok')} />;
 
   const tema = etichettaModo(modo);
+  // Mostra "Operatore <nome>" dal nome dato al dispositivo in setup (es. "Operatore
+  // Peo"); fallback "Parcheggio" se per qualche motivo il nome manca.
+  const nomeDisp = getDeviceNome();
+  const operatore = nomeDisp ? `Operatore ${nomeDisp}` : 'Parcheggio';
 
   return (
     <div className="app">
       <header className="topbar">
         <img src="/lido-america.png" className="logo-topbar" alt="" />
-        Parcheggio
+        {operatore}
         <button
           className="tema-toggle"
           onClick={cicla}
