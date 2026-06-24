@@ -266,8 +266,18 @@ function messaggio(r) {
 // Così "VIP GIUSEPPE" compare come "GIUSEPPE". La sigla reale (chiave) resta intatta.
 const nomeVisibile = (numero) => (numero.startsWith('VIP ') ? numero.slice(4) : numero);
 
+// Categorie mostrate nei contatori "auto entrate / targhe" del Parking Manager.
+const CATEGORIE = [
+  { key: 'bianche', label: 'Bianco' },
+  { key: 'gialle', label: 'Giallo' },
+  { key: 'postazioni', label: 'Postazioni' },
+  { key: 'spogliatoi', label: 'Spogliatoi' },
+  { key: 'vip', label: 'VIP' },
+];
+
 function Anagrafica({ token, onAuthFail }) {
   const [cabine, setCabine] = useState(null);
+  const [riepilogo, setRiepilogo] = useState(null);
   const [q, setQ] = useState('');
   const [nuovaAperta, setNuovaAperta] = useState(false);
 
@@ -276,7 +286,16 @@ function Anagrafica({ token, onAuthFail }) {
     if (r.cabine) setCabine(r.cabine);
     else onAuthFail();
   }
-  useEffect(() => { carica(); }, []);
+  async function caricaRiepilogo() {
+    const r = await api.riepilogo(token);
+    if (r.categorie) setRiepilogo(r.categorie);
+  }
+  useEffect(() => {
+    carica();
+    caricaRiepilogo();
+    const t = setInterval(caricaRiepilogo, 20000); // "auto entrate" è dato vivo
+    return () => clearInterval(t);
+  }, []);
 
   if (!cabine) return <div className="pannello"><p className="muto">…</p></div>;
 
@@ -299,14 +318,28 @@ function Anagrafica({ token, onAuthFail }) {
         .sort((a, b) => a[1] - b[1])
         .map(([c]) => c)
     : cabine;
-  const totTarghe = cabine.reduce((s, c) => s + c.targhe.length, 0);
+  // Totale auto dentro / targhe registrate (somma su tutte le categorie).
+  const tot = Object.values(riepilogo || {}).reduce(
+    (a, r) => ({ entrate: a.entrate + r.entrate, targhe: a.targhe + r.targhe }),
+    { entrate: 0, targhe: 0 },
+  );
 
   return (
     <div className="pannello">
       <div className="ana-head">
         <div>
           <h2>Parking Manager</h2>
-          <div className="muto piccolo ana-tot">{cabine.length} cabine · {totTarghe} targhe</div>
+          <div className="muto piccolo ana-tot">
+            {riepilogo
+              ? <>
+                  {CATEGORIE.map((cat) => {
+                    const r = riepilogo[cat.key] || { entrate: 0, targhe: 0 };
+                    return `${cat.label} ${r.entrate}/${r.targhe}`;
+                  }).join('  ·  ')}
+                  {'  —  '}<b>Totale {tot.entrate}/{tot.targhe}</b>
+                </>
+              : 'Caricamento…'}
+          </div>
         </div>
         <button className="ana-nuova-btn" onClick={() => setNuovaAperta(true)}>+ Nuova</button>
       </div>

@@ -909,9 +909,11 @@ body {
 }
 
 /* --- Anagrafica (cabine + targhe) --- */
-.ana-tot { margin: 2px 0 0; }
+.ana-tot { margin: 2px 0 0; white-space: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .ana-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.ana-head > div:first-child { min-width: 0; }   /* lascia scrollare .ana-tot invece di allargare */
 .ana-head h2 { margin: 0; }
+.ana-nuova-btn { flex-shrink: 0; }
 .ana-nuova-btn {
   flex: 0 0 auto; border: 1px solid var(--bordo); background: #0b1220; color: #fff;
   border-radius: 10px; padding: 10px 14px; font-size: 15px; font-weight: 700; cursor: pointer;

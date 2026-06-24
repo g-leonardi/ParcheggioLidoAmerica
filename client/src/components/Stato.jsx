@@ -7,14 +7,17 @@ import { api } from '../api.js';
 //  • Postazioni = P+numero (es. P1) e Capannine CB*/CG* → accorpati in un'unica zona
 //  • Spogliatoi = SB/SG/SI/SL…        → cabine più piccole (ex "Speciali")
 //  • VIP        = (assegnata dall'admin, non dalla sigla — wiring da fare)
-// Le VIP esistono (si creano in admin) ma NON si mostrano lato operatore:
-// niente chip qui e vengono filtrate dalla griglia/conteggi (vedi cabineVis).
 const ZONE = [
   { key: 'bianche', label: 'Bianco', icona: '⚪' },
   { key: 'gialle', label: 'Giallo', icona: '🟡' },
   { key: 'postazioni', label: 'Postazioni', icona: '⛱️' },
   { key: 'spogliatoi', label: 'Spogliatoi', icona: '🚪' },
+  { key: 'vip', label: 'VIP', icona: '⭐' },
 ];
+
+// "VIP PEO" → "PEO" per il display nel quadrotto: il prefisso "VIP " serve solo
+// a categorizzare, non si mostra. La sigla reale (chiave) resta intatta.
+const nomeCella = (cab) => (cab.startsWith('VIP ') ? cab.slice(4) : cab);
 const CHIPS = [{ key: 'tutte', label: 'Tutte', icona: '' }, ...ZONE];
 
 // Estrae numero e zona da una sigla cabina, gestendo sia "101G" sia "SB".
@@ -60,22 +63,19 @@ export default function Stato() {
 
   const dentro = sel ? presenti.filter((p) => p.cabina === sel).map((p) => p.targa) : [];
 
-  // Base lato operatore: tutte le cabine TRANNE le VIP (nascoste qui).
-  const cabineVis = useMemo(() => cabine.filter((c) => zonaDi(c.cabina) !== 'vip'), [cabine]);
-
   // Conteggi per le chip (totali per zona, indipendenti dalla ricerca).
   const conteggi = useMemo(() => {
-    const m = { tutte: cabineVis.length };
+    const m = { tutte: cabine.length };
     for (const z of ZONE) m[z.key] = 0;
-    for (const c of cabineVis) m[zonaDi(c.cabina)]++;
+    for (const c of cabine) m[zonaDi(c.cabina)]++;
     return m;
-  }, [cabineVis]);
+  }, [cabine]);
 
   const gruppi = useMemo(() => {
     const filtro = q.trim().toUpperCase();
     const visibili = filtro
-      ? cabineVis.filter((c) => c.cabina.toUpperCase().includes(filtro))
-      : cabineVis;
+      ? cabine.filter((c) => c.cabina.toUpperCase().includes(filtro))
+      : cabine;
     const cmp =
       ordine === 'occupazione'
         ? (a, b) => a.disponibili - b.disponibili || parseCab(a.cabina).num - parseCab(b.cabina).num
@@ -92,7 +92,7 @@ export default function Stato() {
     return zoneDaMostrare
       .map((z) => ({ ...z, celle: visibili.filter((c) => zonaDi(c.cabina) === z.key).sort(cmp) }))
       .filter((g) => g.celle.length > 0);
-  }, [cabineVis, q, zonaSel, ordine]);
+  }, [cabine, q, zonaSel, ordine]);
 
   const totVisibili = gruppi.reduce((n, g) => n + g.celle.length, 0);
 
@@ -166,7 +166,7 @@ export default function Stato() {
                   }`}
                   onClick={() => setSel(sel === c.cabina ? null : c.cabina)}
                 >
-                  <div className="cella-num">{c.cabina}</div>
+                  <div className="cella-num">{nomeCella(c.cabina)}</div>
                   <div className="cella-posti">
                     {c.occupati}/{c.posti}
                   </div>
@@ -180,7 +180,7 @@ export default function Stato() {
       {sel && (
         <div className="dettaglio-cabina">
           <div className="dettaglio-head">
-            <h3>Cabina {sel} · {dentro.length === 0 ? 'vuota' : `${dentro.length} dentro`}</h3>
+            <h3>Cabina {nomeCella(sel)} · {dentro.length === 0 ? 'vuota' : `${dentro.length} dentro`}</h3>
             <button className="dettaglio-close" onClick={() => setSel(null)} aria-label="Chiudi">
               ×
             </button>

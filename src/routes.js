@@ -97,6 +97,8 @@ export default async function routes(app) {
 
   // --- Anagrafica (cabine + targhe + posti) ---
   app.get('/api/admin/cabine', sup, async () => ({ cabine: anag.lista() }));
+  // Riepilogo "auto entrate / targhe" per categoria (per l'header Parking Manager).
+  app.get('/api/admin/riepilogo', sup, async () => ({ categorie: core.riepilogoCategorie() }));
 
   app.post('/api/admin/cabine', sup, async (req, reply) => {
     const r = anag.creaCabina(req.body?.numero, req.body?.posti);

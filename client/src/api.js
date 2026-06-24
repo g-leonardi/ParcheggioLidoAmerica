@@ -53,6 +53,7 @@ export const api = {
     }).then(json),
   // --- anagrafica (super user) ---
   cabine: (token) => fetch('/api/admin/cabine', { headers: bearer(token) }).then(json),
+  riepilogo: (token) => fetch('/api/admin/riepilogo', { headers: bearer(token) }).then(json),
   creaCabina: (token, numero, posti) => post('/api/admin/cabine', { numero, posti }, bearer(token)),
   aggiornaPosti: (token, numero, posti) =>
     fetch(`/api/admin/cabine/${encodeURIComponent(numero)}`, {

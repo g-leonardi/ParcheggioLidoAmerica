@@ -99,6 +99,34 @@ export function presenti(giorno = romeDate()) {
   return qPresenti.all(giorno);
 }
 
+// Categoria di una sigla cabina. TENERE ALLINEATO con zonaDi() in client Stato.jsx.
+function categoria(cab) {
+  const c = String(cab).toUpperCase();
+  if (c.startsWith('VIP ')) return 'vip';
+  const m = c.match(/^(\d+)([A-Z]+)$/);                 // 101B, 32G
+  const zona = m ? m[2] : (c.match(/^([A-Z]+)/)?.[1] ?? c); // CB1->CB, P12->P, SB->SB
+  if (zona === 'B') return 'bianche';
+  if (zona === 'G') return 'gialle';
+  if (zona === 'P' || zona === 'CB' || zona === 'CG') return 'postazioni';
+  return 'spogliatoi';
+}
+
+const qTargheCabina = db.prepare('SELECT cabina FROM targhe');
+
+// Riepilogo per categoria: { <cat>: { entrate, targhe } }.
+// targhe = quante targhe registrate in quella categoria (denominatore).
+// entrate = quante di quelle targhe sono attualmente DENTRO oggi (numeratore).
+export function riepilogoCategorie(giorno = romeDate()) {
+  const cats = {};
+  const bump = (cab, campo) => {
+    const k = categoria(cab);
+    (cats[k] ??= { entrate: 0, targhe: 0 })[campo]++;
+  };
+  for (const t of qTargheCabina.all()) bump(t.cabina, 'targhe');
+  for (const p of presenti(giorno)) bump(p.cabina, 'entrate');
+  return cats;
+}
+
 export function occupazioneTutte(giorno = romeDate()) {
   return qTutteCabine.all().map((c) => {
     const occupati = qOccCabina.get(c.numero, giorno).occ;
