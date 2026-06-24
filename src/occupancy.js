@@ -100,7 +100,7 @@ export function presenti(giorno = romeDate()) {
 }
 
 // Categoria di una sigla cabina. TENERE ALLINEATO con zonaDi() in client Stato.jsx.
-function categoria(cab) {
+export function categoria(cab) {
   const c = String(cab).toUpperCase();
   if (c.startsWith('VIP ')) return 'vip';
   const m = c.match(/^(\d+)([A-Z]+)$/);                 // 101B, 32G

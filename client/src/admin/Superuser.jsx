@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api.js';
+import Grafici from './Grafici.jsx';
 
 const K_TOKEN = 'parcheggio.superToken';
 
@@ -58,7 +59,7 @@ function Login({ onToken }) {
 }
 
 function Dashboard({ token, onLogout }) {
-  const [vista, setVista] = useState('dispositivi');
+  const [vista, setVista] = useState('grafici'); // dashboard-first
   return (
     <div className="app">
       <header className="topbar">
@@ -69,12 +70,16 @@ function Dashboard({ token, onLogout }) {
         </button>
       </header>
       <main className="contenuto">
+        {vista === 'grafici' && <Grafici token={token} onAuthFail={onLogout} />}
         {vista === 'dispositivi' && <Dispositivi token={token} onAuthFail={onLogout} />}
         {vista === 'anagrafica' && <Anagrafica token={token} onAuthFail={onLogout} />}
         {vista === 'alpr' && <Alpr token={token} onAuthFail={onLogout} />}
         {vista === 'log' && <Log token={token} onAuthFail={onLogout} />}
       </main>
       <nav className="tabbar">
+        <button className={vista === 'grafici' ? 'attivo' : ''} onClick={() => setVista('grafici')}>
+          <span className="tab-icon">📊</span>Dashboard
+        </button>
         <button className={vista === 'dispositivi' ? 'attivo' : ''} onClick={() => setVista('dispositivi')}>
           <span className="tab-icon">📱</span>Dispositivi
         </button>
@@ -275,11 +280,47 @@ const CATEGORIE = [
   { key: 'vip', label: 'VIP' },
 ];
 
+// --- Esportazione anagrafica (cabina -> targhe) ---------------------------
+// Tutto client-side dai dati già caricati: nessuna chiamata extra al server.
+function campoCsv(v) {
+  const s = String(v ?? '');
+  return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+function scarica(contenuto, nome, mime) {
+  const url = URL.createObjectURL(new Blob([contenuto], { type: mime }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nome;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+function esportaCSV(cabine) {
+  // Una riga per cabina; le targhe nella stessa cella, separate da virgola.
+  // Delimitatore ';' (default di Excel in locale IT → si apre già in colonne).
+  const sep = ';';
+  const righe = [['cabina', 'ingressi', 'targhe'].join(sep)];
+  for (const c of cabine) {
+    righe.push([campoCsv(c.numero), c.posti, campoCsv(c.targhe.join(','))].join(sep));
+  }
+  // BOM iniziale → Excel legge l'UTF-8 (accenti) correttamente.
+  const csv = '﻿' + righe.join('\r\n');
+  scarica(csv, `parking-manager-${todayRome()}.csv`, 'text/csv;charset=utf-8');
+}
+function esportaJSON(cabine) {
+  // Indicizzato per cabina: { "2B": { ingressi: 2, targhe: ["AAA","BBB"] }, ... }.
+  const dati = {};
+  for (const c of cabine) dati[c.numero] = { ingressi: c.posti, targhe: c.targhe };
+  scarica(JSON.stringify(dati, null, 2), `parking-manager-${todayRome()}.json`, 'application/json');
+}
+
 function Anagrafica({ token, onAuthFail }) {
   const [cabine, setCabine] = useState(null);
   const [riepilogo, setRiepilogo] = useState(null);
   const [q, setQ] = useState('');
   const [nuovaAperta, setNuovaAperta] = useState(false);
+  const [exportAperto, setExportAperto] = useState(false);
 
   async function carica() {
     const r = await api.cabine(token);
@@ -327,22 +368,43 @@ function Anagrafica({ token, onAuthFail }) {
   return (
     <div className="pannello">
       <div className="ana-head">
-        <div>
-          <h2>Parking Manager</h2>
-          <div className="muto piccolo ana-tot">
-            {riepilogo
-              ? <>
-                  {CATEGORIE.map((cat) => {
-                    const r = riepilogo[cat.key] || { entrate: 0, targhe: 0 };
-                    return `${cat.label} ${r.entrate}/${r.targhe}`;
-                  }).join('  ·  ')}
-                  {'  —  '}<b>Totale {tot.entrate}/{tot.targhe}</b>
-                </>
-              : 'Caricamento…'}
+        <div><h2>Parking Manager</h2></div>
+        <div className="ana-head-azioni">
+          <div className="pm-export-wrap">
+            <button className="ana-nuova-btn pm-export-btn" onClick={() => setExportAperto((o) => !o)}>
+              ⬇ Esporta
+            </button>
+            {exportAperto && (
+              <>
+                <div className="pm-export-backdrop" onClick={() => setExportAperto(false)} />
+                <div className="pm-export-menu" role="menu">
+                  <span className="muto piccolo">Esporta in</span>
+                  <button onClick={() => { esportaCSV(cabine); setExportAperto(false); }}>CSV / Excel</button>
+                  <button onClick={() => { esportaJSON(cabine); setExportAperto(false); }}>JSON</button>
+                </div>
+              </>
+            )}
           </div>
+          <button className="ana-nuova-btn" onClick={() => setNuovaAperta(true)}>+ Nuova</button>
         </div>
-        <button className="ana-nuova-btn" onClick={() => setNuovaAperta(true)}>+ Nuova</button>
       </div>
+      {riepilogo ? (
+        <div className="pm-conteggi">
+          {CATEGORIE.map((cat) => {
+            const r = riepilogo[cat.key] || { entrate: 0, targhe: 0 };
+            return (
+              <span key={cat.key} className="pm-chip">
+                <span className="pm-lbl">{cat.label}</span>
+                <span className="pm-val">{r.entrate}/{r.targhe}</span>
+              </span>
+            );
+          })}
+          <span className="pm-chip pm-tot">
+            <span className="pm-lbl">Totale</span>
+            <span className="pm-val">{tot.entrate}/{tot.targhe}</span>
+          </span>
+        </div>
+      ) : <div className="muto piccolo">Caricamento…</div>}
 
       <input
         className="ti-input cerca ana-cerca"

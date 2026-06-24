@@ -909,11 +909,40 @@ body {
 }
 
 /* --- Anagrafica (cabine + targhe) --- */
-.ana-tot { margin: 2px 0 0; white-space: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.ana-tot { margin: 2px 0 0; }
 .ana-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.ana-head > div:first-child { min-width: 0; }   /* lascia scrollare .ana-tot invece di allargare */
 .ana-head h2 { margin: 0; }
 .ana-nuova-btn { flex-shrink: 0; }
+
+/* Conteggi auto-entrate per categoria: chip che vanno a capo, Totale evidenziato. */
+.pm-conteggi { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 2px; }
+.pm-chip {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  padding: 3px 10px; border-radius: 999px;
+  background: var(--bg); border: 1px solid var(--bordo); font-size: 12px;
+}
+.pm-lbl { color: var(--muto); }
+.pm-val { font-weight: 700; font-variant-numeric: tabular-nums; }
+.pm-tot { background: var(--verde); border-color: transparent; }
+.pm-tot .pm-lbl, .pm-tot .pm-val { color: #fff; }
+
+/* azioni in testata (Esporta + Nuova) */
+.ana-head-azioni { display: flex; gap: 8px; flex-shrink: 0; }
+.pm-export-wrap { position: relative; }
+.pm-export-btn { background: var(--bg); color: var(--testo); }   /* secondario vs "+ Nuova" */
+.pm-export-backdrop { position: fixed; inset: 0; z-index: 9; }
+.pm-export-menu {
+  position: absolute; right: 0; top: calc(100% + 6px); z-index: 10;
+  background: var(--card); border: 1px solid var(--bordo); border-radius: 10px;
+  padding: 8px; min-width: 150px; display: flex; flex-direction: column; gap: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.pm-export-menu > span { padding: 0 2px 2px; }
+.pm-export-menu button {
+  text-align: left; padding: 9px 12px; border-radius: 8px;
+  border: 1px solid var(--bordo); background: var(--bg); color: var(--testo);
+  font-size: 14px; font-weight: 600; cursor: pointer;
+}
 .ana-nuova-btn {
   flex: 0 0 auto; border: 1px solid var(--bordo); background: #0b1220; color: #fff;
   border-radius: 10px; padding: 10px 14px; font-size: 15px; font-weight: 700; cursor: pointer;
@@ -1151,3 +1180,28 @@ body {
   border-radius: 999px;
   padding: 2px 10px;
 }
+
+/* --- grafici / dashboard admin --- */
+.g-dashboard { display: flex; flex-direction: column; gap: 14px; margin-top: 12px; }
+.g-card { background: var(--card); border: 1px solid var(--bordo); border-radius: 12px; padding: 10px 12px; }
+.g-card-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+.g-card-head b { font-size: 15px; }
+.g-svg { width: 100%; height: auto; color: var(--testo); }
+.g-asse { stroke: currentColor; stroke-width: 1; opacity: 0.3; }
+.g-tick { fill: currentColor; opacity: 0.65; font-size: 9px; }
+.g-linea { fill: none; stroke: var(--verde); stroke-width: 2; }
+.g-vuoto { color: var(--muto); font-size: 13px; padding: 24px 8px; text-align: center; }
+.g-torta { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.g-torta-svg { width: 130px; height: 130px; flex-shrink: 0; }
+.g-legenda { list-style: none; margin: 0; padding: 0; flex: 1; min-width: 140px; display: flex; flex-direction: column; gap: 5px; }
+.g-legenda li { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.g-pallino { width: 11px; height: 11px; border-radius: 3px; flex-shrink: 0; }
+.g-leg-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.g-leg-val { color: var(--muto); font-variant-numeric: tabular-nums; }
+.g-tipi { display: flex; gap: 8px; flex-wrap: wrap; }
+.g-tipo { padding: 8px 14px; border-radius: 999px; border: 1px solid var(--bordo); background: var(--bg); color: var(--testo); cursor: pointer; }
+.g-tipo.attivo { background: var(--verde); color: #fff; border-color: transparent; }
+.g-periodo { display: flex; align-items: center; gap: 8px; }
+.g-periodo .ti-input { flex: 1; min-width: 0; }
+.g-anteprima { margin: 12px 0; padding: 8px; border: 1px dashed var(--bordo); border-radius: 10px; min-height: 120px; display: flex; align-items: center; justify-content: center; }
+.g-anteprima > * { width: 100%; }

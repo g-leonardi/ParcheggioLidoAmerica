@@ -53,6 +53,16 @@ db.exec(`
     key   TEXT PRIMARY KEY,
     value TEXT
   );
+
+  -- Grafici salvati dal super user: compongono la sua dashboard personale.
+  CREATE TABLE IF NOT EXISTS grafici (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    tipo       TEXT NOT NULL,     -- 'linea' | 'barre' | 'torta' | 'punti'
+    titolo     TEXT NOT NULL,
+    config     TEXT NOT NULL,     -- JSON: { metrica, da, a }
+    ordine     INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+  );
 `);
 
 // Migrazione: colonna "dispositivo" sugli eventi (tracciabilità: quale postazione ha autorizzato).

@@ -7,6 +7,7 @@ import * as core from './occupancy.js';
 import * as auth from './auth.js';
 import * as alpr from './alpr.js';
 import * as anag from './anagrafica.js';
+import * as graf from './grafici.js';
 
 export default async function routes(app) {
   app.get('/api/health', async () => ({ ok: true, devBypass: auth.DEV_BYPASS }));
@@ -99,6 +100,20 @@ export default async function routes(app) {
   app.get('/api/admin/cabine', sup, async () => ({ cabine: anag.lista() }));
   // Riepilogo "auto entrate / targhe" per categoria (per l'header Parking Manager).
   app.get('/api/admin/riepilogo', sup, async () => ({ categorie: core.riepilogoCategorie() }));
+
+  // --- Grafici (dashboard super user) ---
+  app.get('/api/admin/grafici', sup, async () => ({ grafici: graf.listaGrafici() }));
+  app.post('/api/admin/grafici', sup, async (req, reply) => {
+    const r = graf.creaGrafico(req.body || {});
+    return r.ok ? r : reply.code(400).send(r);
+  });
+  app.delete('/api/admin/grafici/:id', sup, async (req, reply) => {
+    const r = graf.eliminaGrafico(Number(req.params.id));
+    return r.ok ? r : reply.code(404).send(r);
+  });
+  app.post('/api/admin/grafici/riordina', sup, async (req) => graf.riordina(req.body?.ids));
+  // Anteprima dati (per il wizard, prima di salvare).
+  app.post('/api/admin/grafici/dati', sup, async (req) => ({ dati: graf.datiGrafico(req.body?.config || {}) }));
 
   app.post('/api/admin/cabine', sup, async (req, reply) => {
     const r = anag.creaCabina(req.body?.numero, req.body?.posti);

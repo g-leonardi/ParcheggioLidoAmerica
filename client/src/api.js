@@ -54,6 +54,13 @@ export const api = {
   // --- anagrafica (super user) ---
   cabine: (token) => fetch('/api/admin/cabine', { headers: bearer(token) }).then(json),
   riepilogo: (token) => fetch('/api/admin/riepilogo', { headers: bearer(token) }).then(json),
+
+  // --- grafici (dashboard) ---
+  grafici: (token) => fetch('/api/admin/grafici', { headers: bearer(token) }).then(json),
+  creaGrafico: (token, body) => post('/api/admin/grafici', body, bearer(token)),
+  eliminaGrafico: (token, id) =>
+    fetch(`/api/admin/grafici/${id}`, { method: 'DELETE', headers: bearer(token) }).then(json),
+  graficoDati: (token, config) => post('/api/admin/grafici/dati', { config }, bearer(token)),
   creaCabina: (token, numero, posti) => post('/api/admin/cabine', { numero, posti }, bearer(token)),
   aggiornaPosti: (token, numero, posti) =>
     fetch(`/api/admin/cabine/${encodeURIComponent(numero)}`, {
