@@ -100,6 +100,8 @@ export default async function routes(app) {
   app.get('/api/admin/cabine', sup, async () => ({ cabine: anag.lista() }));
   // Riepilogo "auto entrate / targhe" per categoria (per l'header Parking Manager).
   app.get('/api/admin/riepilogo', sup, async () => ({ categorie: core.riepilogoCategorie() }));
+  // Targhe attualmente DENTRO oggi: l'admin evidenzia chi è presente e conta gli ingressi usati.
+  app.get('/api/admin/presenti', sup, async () => ({ presenti: core.presenti().map((p) => p.targa) }));
 
   // --- Grafici (dashboard super user) ---
   app.get('/api/admin/grafici', sup, async () => ({ grafici: graf.listaGrafici() }));

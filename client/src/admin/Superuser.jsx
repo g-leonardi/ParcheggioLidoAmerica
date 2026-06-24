@@ -1,8 +1,36 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import Grafici from './Grafici.jsx';
+import { prossimoModo, temaEffettivo, etichettaModo } from '../tema.js';
 
 const K_TOKEN = 'parcheggio.superToken';
+
+// Tema dell'area admin: chiave PROPRIA (indipendente dall'app operatore), default
+// 'scuro' come è sempre stato. Scrive data-tema su <html> → attiva il CSS chiaro.
+const TEMA_KEY = 'tema-admin';
+const MODI_TEMA = ['auto', 'chiaro', 'scuro'];
+function getModoAdmin() {
+  const v = localStorage.getItem(TEMA_KEY);
+  return MODI_TEMA.includes(v) ? v : 'scuro';
+}
+function useTemaAdmin() {
+  const [modo, setModoState] = useState(getModoAdmin);
+  useEffect(() => {
+    const mq = window.matchMedia?.('(prefers-color-scheme: light)');
+    const applica = () => { document.documentElement.dataset.tema = temaEffettivo(modo); };
+    applica();
+    if (modo === 'auto' && mq) {
+      mq.addEventListener?.('change', applica);
+      return () => mq.removeEventListener?.('change', applica);
+    }
+  }, [modo]);
+  const cicla = () => {
+    const next = prossimoModo(modo);
+    localStorage.setItem(TEMA_KEY, next);
+    setModoState(next);
+  };
+  return { modo, cicla };
+}
 
 // Token in localStorage (non sessionStorage): deve sopravvivere alla chiusura
 // della PWA. La PWA installata da Chrome viene chiusa dall'OS quando va in
@@ -11,6 +39,7 @@ const K_TOKEN = 'parcheggio.superToken';
 // la decide il server (token firmato, 30 giorni — vedi src/auth.js).
 export default function Superuser() {
   const [token, setToken] = useState(localStorage.getItem(K_TOKEN) || '');
+  const tema = useTemaAdmin();
 
   function setSession(t) {
     localStorage.setItem(K_TOKEN, t);
@@ -22,7 +51,7 @@ export default function Superuser() {
   }
 
   if (!token) return <Login onToken={setSession} />;
-  return <Dashboard token={token} onLogout={logout} />;
+  return <Dashboard token={token} onLogout={logout} tema={tema} />;
 }
 
 function Login({ onToken }) {
@@ -58,16 +87,28 @@ function Login({ onToken }) {
   );
 }
 
-function Dashboard({ token, onLogout }) {
+function Dashboard({ token, onLogout, tema }) {
   const [vista, setVista] = useState('grafici'); // dashboard-first
+  const et = etichettaModo(tema.modo);
   return (
     <div className="app">
       <header className="topbar">
         <img src="/lido-america.png" className="logo-topbar" alt="" />
         Manager
-        <button className="logout" onClick={onLogout}>
-          Esci
-        </button>
+        <div className="topbar-dx">
+          <button
+            className="tema-toggle"
+            onClick={tema.cicla}
+            aria-label={`Tema ${et.testo}. Tocca per cambiare.`}
+            title={`Tema: ${et.testo}`}
+          >
+            <span aria-hidden="true">{et.icona}</span>
+            {et.testo}
+          </button>
+          <button className="logout" onClick={onLogout}>
+            Esci
+          </button>
+        </div>
       </header>
       <main className="contenuto">
         {vista === 'grafici' && <Grafici token={token} onAuthFail={onLogout} />}
@@ -76,21 +117,21 @@ function Dashboard({ token, onLogout }) {
         {vista === 'alpr' && <Alpr token={token} onAuthFail={onLogout} />}
         {vista === 'log' && <Log token={token} onAuthFail={onLogout} />}
       </main>
-      <nav className="tabbar">
+      <nav className="tabbar tabbar-admin">
+        <button className={vista === 'anagrafica' ? 'attivo' : ''} onClick={() => setVista('anagrafica')}>
+          <span className="tab-icon">🏖️</span><span className="tab-label">Parking Manager</span>
+        </button>
         <button className={vista === 'grafici' ? 'attivo' : ''} onClick={() => setVista('grafici')}>
-          <span className="tab-icon">📊</span>Dashboard
+          <span className="tab-icon">📊</span><span className="tab-label">Dashboard</span>
         </button>
         <button className={vista === 'dispositivi' ? 'attivo' : ''} onClick={() => setVista('dispositivi')}>
-          <span className="tab-icon">📱</span>Dispositivi
-        </button>
-        <button className={vista === 'anagrafica' ? 'attivo' : ''} onClick={() => setVista('anagrafica')}>
-          <span className="tab-icon">🏖️</span>Cabine
-        </button>
-        <button className={vista === 'alpr' ? 'attivo' : ''} onClick={() => setVista('alpr')}>
-          <span className="tab-icon">📷</span>ALPR
+          <span className="tab-icon">📱</span><span className="tab-label">Dispositivi</span>
         </button>
         <button className={vista === 'log' ? 'attivo' : ''} onClick={() => setVista('log')}>
-          <span className="tab-icon">📋</span>Log
+          <span className="tab-icon">📋</span><span className="tab-label">Log</span>
+        </button>
+        <button className={vista === 'alpr' ? 'attivo' : ''} onClick={() => setVista('alpr')}>
+          <span className="tab-icon">📷</span><span className="tab-label">ALPR</span>
         </button>
       </nav>
     </div>
@@ -318,6 +359,7 @@ function esportaJSON(cabine) {
 function Anagrafica({ token, onAuthFail }) {
   const [cabine, setCabine] = useState(null);
   const [riepilogo, setRiepilogo] = useState(null);
+  const [presenti, setPresenti] = useState(() => new Set());
   const [q, setQ] = useState('');
   const [nuovaAperta, setNuovaAperta] = useState(false);
   const [exportAperto, setExportAperto] = useState(false);
@@ -327,14 +369,16 @@ function Anagrafica({ token, onAuthFail }) {
     if (r.cabine) setCabine(r.cabine);
     else onAuthFail();
   }
-  async function caricaRiepilogo() {
-    const r = await api.riepilogo(token);
+  // Dati "vivi" (cambiano con ingressi/uscite): riepilogo categorie + targhe dentro ora.
+  async function caricaLive() {
+    const [r, p] = await Promise.all([api.riepilogo(token), api.presentiAdmin(token)]);
     if (r.categorie) setRiepilogo(r.categorie);
+    if (p.presenti) setPresenti(new Set(p.presenti));
   }
   useEffect(() => {
     carica();
-    caricaRiepilogo();
-    const t = setInterval(caricaRiepilogo, 20000); // "auto entrate" è dato vivo
+    caricaLive();
+    const t = setInterval(caricaLive, 20000);
     return () => clearInterval(t);
   }, []);
 
@@ -368,25 +412,9 @@ function Anagrafica({ token, onAuthFail }) {
   return (
     <div className="pannello">
       <div className="ana-head">
-        <div><h2>Parking Manager</h2></div>
-        <div className="ana-head-azioni">
-          <div className="pm-export-wrap">
-            <button className="ana-nuova-btn pm-export-btn" onClick={() => setExportAperto((o) => !o)}>
-              ⬇ Esporta
-            </button>
-            {exportAperto && (
-              <>
-                <div className="pm-export-backdrop" onClick={() => setExportAperto(false)} />
-                <div className="pm-export-menu" role="menu">
-                  <span className="muto piccolo">Esporta in</span>
-                  <button onClick={() => { esportaCSV(cabine); setExportAperto(false); }}>CSV / Excel</button>
-                  <button onClick={() => { esportaJSON(cabine); setExportAperto(false); }}>JSON</button>
-                </div>
-              </>
-            )}
-          </div>
-          <button className="ana-nuova-btn" onClick={() => setNuovaAperta(true)}>+ Nuova</button>
-        </div>
+        <h2>Parking Manager</h2>
+        <button className="cab-fab primario" title="Nuova cabina" aria-label="Nuova cabina"
+          onClick={() => setNuovaAperta(true)}>+</button>
       </div>
       {riepilogo ? (
         <div className="pm-conteggi">
@@ -406,21 +434,37 @@ function Anagrafica({ token, onAuthFail }) {
         </div>
       ) : <div className="muto piccolo">Caricamento…</div>}
 
-      <input
-        className="ti-input cerca ana-cerca"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder="Cerca cabina o targa…"
-        autoCapitalize="characters"
-        autoCorrect="off"
-      />
+      <div className="ana-cerca-row">
+        <input
+          className="ti-input cerca"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Cerca cabina o targa…"
+          autoCapitalize="characters"
+          autoCorrect="off"
+        />
+        <div className="pm-export-wrap">
+          <button className="cab-fab" title="Esporta" aria-label="Esporta"
+            onClick={() => setExportAperto((o) => !o)}>⬇</button>
+          {exportAperto && (
+            <>
+              <div className="pm-export-backdrop" onClick={() => setExportAperto(false)} />
+              <div className="pm-export-menu" role="menu">
+                <span className="muto piccolo">Esporta in</span>
+                <button onClick={() => { esportaCSV(cabine); setExportAperto(false); }}>CSV / Excel</button>
+                <button onClick={() => { esportaJSON(cabine); setExportAperto(false); }}>JSON</button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
 
       {viste.length === 0 ? (
-        <p className="muto">{filtro ? 'Nessuna corrispondenza.' : 'Nessuna cabina. Tocca “+ Nuova” o importa il CSV.'}</p>
+        <p className="muto">{filtro ? 'Nessuna corrispondenza.' : 'Nessuna cabina. Tocca + in alto per crearne una.'}</p>
       ) : (
         <div className="ana-lista">
           {viste.map((c) => (
-            <CardCabina key={c.numero} cabina={c} token={token} onChange={carica} />
+            <CardCabina key={c.numero} cabina={c} token={token} presenti={presenti} onChange={carica} />
           ))}
         </div>
       )}
@@ -531,10 +575,15 @@ function ModaleNuovaCabina({ token, onChiudi, onCreata }) {
   );
 }
 
-function CardCabina({ cabina, token, onChange }) {
+function CardCabina({ cabina, token, presenti, onChange }) {
+  const [aperta, setAperta] = useState(false);
   const [targa, setTarga] = useState('');
   const [err, setErr] = useState('');
   const [posti, setPosti] = useState(cabina.posti);
+  const isVip = cabina.numero.startsWith('VIP ');
+  const nTarghe = cabina.targhe.length;
+  const usati = cabina.targhe.filter((t) => presenti.has(t)).length; // ingressi usati ORA
+  const vuota = nTarghe === 0;
 
   async function setP(nuovo) {
     if (nuovo < 1) return;
@@ -562,41 +611,50 @@ function CardCabina({ cabina, token, onChange }) {
   }
 
   return (
-    <div className="ana-card">
-      <div className="ana-card-head">
-        <span className="ana-cab">
-          {cabina.numero.startsWith('VIP ') && '⭐ '}{nomeVisibile(cabina.numero)}
-        </span>
-        <div className="ana-posti">
-          <button onClick={() => setP(posti - 1)} disabled={posti <= 1}>−</button>
-          <span>{posti} <small>{posti === 1 ? 'ingresso' : 'ingressi'}</small></span>
-          <button onClick={() => setP(posti + 1)}>+</button>
-        </div>
-        <button className="ana-del" onClick={elimina} title="Elimina cabina">🗑</button>
-      </div>
-      <div className="ana-targhe">
-        {cabina.targhe.length === 0 && <span className="muto piccolo">nessuna targa</span>}
+    <div className={`cab ${aperta ? 'cab-aperta' : ''} ${vuota ? 'cab-vuota' : ''}`}>
+      <button className="cab-head" onClick={() => setAperta((a) => !a)} aria-expanded={aperta}>
+        <span className="cab-nome">{isVip && '⭐ '}{nomeVisibile(cabina.numero)}</span>
+        <span className="cab-meta">{nTarghe} {nTarghe === 1 ? 'targa' : 'targhe'} · {usati}/{posti} ingressi</span>
+        <span className="cab-chev" aria-hidden="true">⌄</span>
+      </button>
+
+      <div className="cab-targhe">
+        {nTarghe === 0 && <span className="muto piccolo">nessuna targa</span>}
         {cabina.targhe.map((t) => (
-          <span key={t} className="ana-chip">
+          // Da CHIUSA: targhe dentro ora evidenziate in verde. Da aperta: normali (editabili).
+          <span key={t} className={`ana-chip ${!aperta && presenti.has(t) ? 'presente' : ''}`}>
             {t}
-            <button onClick={() => delTarga(t)} aria-label={`rimuovi ${t}`}>×</button>
+            {aperta && <button onClick={() => delTarga(t)} aria-label={`rimuovi ${t}`}>×</button>}
           </span>
         ))}
       </div>
-      <div className="ana-addtarga">
-        <input
-          className="ti-input"
-          value={targa}
-          onChange={(e) => setTarga(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && targa.trim() && addTarga()}
-          placeholder="Aggiungi targa…"
-          autoCapitalize="characters"
-          autoCorrect="off"
-          spellCheck={false}
-        />
-        <button className="btn-ok" onClick={addTarga} disabled={!targa.trim()}>+</button>
-      </div>
-      {err && <div className="msg-err piccolo">{err}</div>}
+
+      {aperta && (
+        <div className="cab-edit">
+          <div className="ana-addtarga">
+            <input
+              className="ti-input"
+              value={targa}
+              onChange={(e) => setTarga(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && targa.trim() && addTarga()}
+              placeholder="Aggiungi targa…"
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
+            />
+            <button className="btn-ok" onClick={addTarga} disabled={!targa.trim()}>+</button>
+          </div>
+          <div className="cab-azioni">
+            <div className="ana-posti">
+              <button onClick={() => setP(posti - 1)} disabled={posti <= 1}>−</button>
+              <span>{posti} <small>{posti === 1 ? 'ingresso' : 'ingressi'}</small></span>
+              <button onClick={() => setP(posti + 1)}>+</button>
+            </div>
+            <button className="cab-del" onClick={elimina}>🗑 Elimina</button>
+          </div>
+          {err && <div className="msg-err piccolo">{err}</div>}
+        </div>
+      )}
     </div>
   );
 }

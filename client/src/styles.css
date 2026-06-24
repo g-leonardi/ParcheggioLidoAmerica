@@ -79,6 +79,12 @@ body {
 .tab-icon {
   font-size: 22px;
 }
+/* Tabbar admin: su smartphone solo icone (la label "Parking Manager" è lunga);
+   da tablet/desktop in su restano anche le scritte. */
+@media (max-width: 600px) {
+  .tabbar-admin .tab-label { display: none; }
+  .tabbar-admin button { padding: 12px 0; }
+}
 
 .pannello {
   padding: 22px 16px;
@@ -689,6 +695,11 @@ body {
   font-size: 14px;
   font-weight: 700;
 }
+/* Gruppo destro topbar admin: tema-toggle + Esci affiancati (entrambi sono
+   absolute di default → qui li riporto in flusso per non sovrapporli). */
+.topbar-dx { margin-left: auto; display: flex; align-items: center; gap: 8px; padding-right: 12px; }
+.topbar-dx .tema-toggle,
+.topbar-dx .logout { position: static; transform: none; top: auto; right: auto; }
 
 /* --- admin: dispositivi --- */
 .lista-dev {
@@ -818,7 +829,7 @@ body {
 }
 .giorno-nav button {
   background: var(--card);
-  color: #fff;
+  color: var(--testo);
   border: 1px solid var(--bordo);
   border-radius: 8px;
   padding: 8px 14px;
@@ -910,9 +921,18 @@ body {
 
 /* --- Anagrafica (cabine + targhe) --- */
 .ana-tot { margin: 2px 0 0; }
-.ana-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.ana-head h2 { margin: 0; }
+.ana-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ana-head h2 { margin: 0; font-size: 19px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ana-nuova-btn { flex-shrink: 0; }
+/* azioni compatte in testata: icone tonde al posto dei bottoni grandi */
+.cab-fab {
+  width: 38px; height: 38px; flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 10px; border: 1px solid var(--bordo); background: var(--bg); color: var(--testo);
+  font-size: 19px; line-height: 1; cursor: pointer;
+}
+.cab-fab:active { transform: scale(0.94); }
+.cab-fab.primario { background: var(--verde); border-color: transparent; color: #fff; font-weight: 700; }
 
 /* Conteggi auto-entrate per categoria: chip che vanno a capo, Totale evidenziato. */
 .pm-conteggi { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 2px; }
@@ -950,7 +970,11 @@ body {
 }
 .ana-nuova-btn:active { transform: scale(0.97); }
 /* ricerca sempre raggiungibile scorrendo la lista lunga */
-.ana-cerca { position: sticky; top: 0; z-index: 2; margin-top: 14px; }
+.ana-cerca-row {
+  position: sticky; top: 0; z-index: 2; margin-top: 14px;
+  background: var(--bg); display: flex; gap: 8px; align-items: center;
+}
+.ana-cerca-row .ti-input { flex: 1; min-width: 0; }
 .ana-lista { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
 .ana-card { border: 1px solid var(--bordo); background: var(--card); border-radius: 12px; padding: 10px 12px; }
 .ana-card-head { display: flex; align-items: center; gap: 10px; }
@@ -966,9 +990,12 @@ body {
 .ana-targhe { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
 .ana-chip {
   display: inline-flex; align-items: center; gap: 6px;
-  background: #0b1220; border: 1px solid var(--bordo); border-radius: 999px;
-  padding: 4px 6px 4px 10px; font-family: ui-monospace, monospace; font-size: 14px; color: var(--testo);
+  background: var(--bg); border: 1px solid var(--bordo); border-radius: 999px;
+  padding: 4px 11px; font-family: ui-monospace, monospace; font-size: 14px; color: var(--testo);
 }
+.ana-chip:has(button) { padding-right: 5px; }   /* spazio per la × solo quando c'è */
+/* Targa attualmente dentro (evidenziata solo ad accordion chiuso). */
+.ana-chip.presente { background: var(--verde); border-color: transparent; color: #fff; }
 .ana-chip button {
   border: none; background: var(--rosso); color: #fff; width: 18px; height: 18px;
   border-radius: 50%; font-size: 13px; line-height: 1; cursor: pointer; padding: 0;
@@ -977,6 +1004,34 @@ body {
 .ana-addtarga { display: flex; gap: 8px; }
 .ana-addtarga .ti-input { flex: 1; min-width: 0; text-transform: uppercase; }
 .ana-addtarga .btn-ok { width: 48px; }
+
+/* --- cabine ad accordion --- */
+.cab { border: 1px solid var(--bordo); background: var(--card); border-radius: 12px; overflow: hidden; }
+.cab-aperta { border-color: var(--verde); }
+/* Cabina senza targhe: bordo rosso evidente, anche da aperta, finché non se ne aggiunge una.
+   Dopo .cab-aperta nel sorgente → vince sul verde quando entrambe presenti. */
+.cab-vuota { border-color: var(--rosso); box-shadow: inset 0 0 0 1px var(--rosso); }
+.cab-head {
+  width: 100%; display: flex; align-items: center; gap: 10px;
+  padding: 12px; background: none; border: none; color: var(--testo);
+  cursor: pointer; text-align: left; font: inherit;
+}
+.cab-nome {
+  font-weight: 800; font-size: 17px; color: var(--testo); letter-spacing: 0.5px;
+  flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.cab-meta { color: var(--muto); font-size: 12px; white-space: nowrap; flex-shrink: 0; }
+.cab-chev { color: var(--muto); font-size: 18px; line-height: 1; flex-shrink: 0; transition: transform 0.18s ease; }
+.cab-aperta .cab-chev { transform: rotate(180deg); }
+.cab-targhe { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px 12px; }
+.cab-edit { display: flex; flex-direction: column; gap: 10px; padding: 0 12px 12px; }
+.cab-azioni { display: flex; align-items: center; gap: 10px; }
+.cab-azioni .ana-posti { margin-left: 0; }
+.cab-del {
+  margin-left: auto; flex-shrink: 0;
+  background: none; border: 1px solid var(--bordo); border-radius: 8px;
+  padding: 7px 12px; color: var(--rosso); font-size: 13px; font-weight: 600; cursor: pointer;
+}
 
 /* --- Bottom-sheet: creazione cabina --- */
 .sheet-overlay {

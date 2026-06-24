@@ -54,6 +54,7 @@ export const api = {
   // --- anagrafica (super user) ---
   cabine: (token) => fetch('/api/admin/cabine', { headers: bearer(token) }).then(json),
   riepilogo: (token) => fetch('/api/admin/riepilogo', { headers: bearer(token) }).then(json),
+  presentiAdmin: (token) => fetch('/api/admin/presenti', { headers: bearer(token) }).then(json),
 
   // --- grafici (dashboard) ---
   grafici: (token) => fetch('/api/admin/grafici', { headers: bearer(token) }).then(json),
