@@ -9,10 +9,12 @@ alto contrasto, pochissimi tap.
 ## Requisiti funzionali
 
 - **Login operatore**: l'operatore si autentica prima di usare l'app.
-- **Riconoscimento targa**: l'operatore scatta una foto col cellulare → l'app riconosce la
-  targa (ALPR/OCR) e la cerca nell'anagrafica.
-- **Inserimento manuale** (first-class, non un ripiego): se la foto non riconosce la targa,
-  l'operatore la inserisce a mano e ritrova la cabina. UX **anti-fila**: campo con
+- **Inserimento targa = schermata di partenza**: l'app si apre già sul campo targa, senza
+  bivi da scegliere a ogni auto. Nessun titolo e nessun "indietro": dietro non c'è nulla.
+- **Riconoscimento targa (secondario)**: il pulsantino fotocamera accanto al campo scatta
+  una foto → l'app riconosce la targa (ALPR/OCR) e la cerca nell'anagrafica; se la lettura
+  non basta si torna al campo con l'errore e, se la targa è sotto soglia, pre-compilata.
+- **Inserimento manuale** (strada principale): l'operatore scrive la targa e ritrova la cabina. UX **anti-fila**: campo con
   **autocomplete/suggerimenti** mentre digita (filtra le targhe dell'anagrafica già dalle
   prime lettere/cifre), tap sul suggerimento → cabina trovata in un colpo. Nessun form lungo,
   bottoni grandi, pochi tap. Stesso pattern di ricerca usato per la lista uscite.
@@ -98,6 +100,15 @@ Append-only: `{ timestamp, targa, cabina, tipo: "ingresso"|"uscita" }`.
   `client/icon-src.svg`), service worker per shell offline. Android mostra il prompt
   "Installa" con HTTPS+SW+manifest; iOS richiede Condividi → Aggiungi a Home (nessun prompt).
   **HTTPS obbligatorio in produzione** per install Android e per la fotocamera (fase ALPR).
+- **DUE PWA distinte, un solo bundle**: Android identifica un'app installata dal
+  **manifest**, non dall'URL aperto. Con un manifest solo, installare da `/admin` installava
+  di fatto l'app operatore e la riapriva su `/`. Quindi: due pagine di ingresso
+  (`client/index.html` → `manifest.webmanifest`, `client/admin.html` →
+  `manager.webmanifest`, entrambi statici in `client/public/`), `manifest: false` nel plugin
+  PWA (altrimenti ne genera e inietta uno solo), `/admin` escluso dal `navigateFallback` del
+  service worker (altrimenti risponderebbe con `index.html` = manifest sbagliato) e
+  `src/server.js` che serve `admin.html` su `/admin`. Icone Manager viola (`manager-*.png`,
+  da `client/manager-src.svg`) per distinguerle a colpo d'occhio sulla home del telefono.
 - **Backend**: Node + Fastify, serve API + build statica.
 - **DB**: SQLite (`better-sqlite3`).
 - **ALPR**: **Plate Recognizer Snapshot Cloud (pay-per-use)** — ALPR dedicato, affidabile su

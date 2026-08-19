@@ -19,8 +19,16 @@ const distDir = path.join(process.cwd(), 'client', 'dist');
 if (existsSync(distDir)) {
   await app.register(fastifyStatic, { root: distDir });
   app.setNotFoundHandler((req, reply) => {
-    if (req.raw.url?.startsWith('/api')) {
+    const url = req.raw.url || '';
+    if (url.startsWith('/api')) {
       return reply.code(404).send({ ok: false, motivo: 'not_found' });
+    }
+    // /admin ha una pagina di ingresso propria: stesso bundle React, ma con il
+    // manifest del Manager. Serve perché Android identifica una PWA installata
+    // dal manifest, non dall'URL: con un manifest solo, installare dal pannello
+    // installava l'app operatore.
+    if (url === '/admin' || url.startsWith('/admin/') || url.startsWith('/admin?')) {
+      return reply.sendFile('admin.html');
     }
     return reply.sendFile('index.html'); // fallback SPA
   });

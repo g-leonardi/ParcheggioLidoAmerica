@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0b1220" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Manager" />
+    <link rel="apple-touch-icon" href="/manager-180.png" />
+    <!-- Stessa app React di index.html (App.jsx sceglie in base al pathname): qui
+         cambia solo l'IDENTITÀ. Android riconosce una PWA installata dal manifest,
+         non dall'indirizzo che avevi aperto: con un manifest solo, installare da
+         /admin installava di fatto l'app operatore e la riapriva su "/". -->
+    <link rel="manifest" href="/manager.webmanifest" />
+    <title>Parcheggio Manager</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>

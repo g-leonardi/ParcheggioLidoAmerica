@@ -1,0 +1,17 @@
+{
+  "id": "/admin",
+  "name": "Parcheggio Manager",
+  "short_name": "Manager",
+  "description": "Pannello responsabile: anagrafica, presenze e statistiche",
+  "lang": "it",
+  "start_url": "/admin",
+  "scope": "/admin",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0b1220",
+  "icons": [
+    { "src": "/manager-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/manager-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/manager-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

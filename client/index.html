@@ -11,6 +11,10 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Parcheggio" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- Manifest scritto a mano (vedi vite.config.js: manifest: false) perché le
+         pagine di ingresso sono due e ognuna deve dichiarare la PROPRIA identità:
+         questa è l'app operatore, admin.html è il Manager. -->
+    <link rel="manifest" href="/manifest.webmanifest" />
     <title>Parcheggio</title>
   </head>
   <body>
