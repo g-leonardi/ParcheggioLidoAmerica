@@ -24,9 +24,12 @@ const DEBUG = (() => {
   } catch { return false; }
 })();
 
-// fase = 'home' | 'ocr' | 'manuale' | 'lookup' | 'fatto'
+// fase = 'manuale' | 'ocr' | 'lookup' | 'fatto'
+// 'manuale' è la schermata di partenza: si scrive la targa e basta. La foto non
+// è più un bivio da scegliere a ogni auto, è il pulsantino accanto al campo per
+// chi ha voglia di usarla.
 export default function Ingresso() {
-  const [fase, setFase] = useState('home');
+  const [fase, setFase] = useState('manuale');
   const [targa, setTarga] = useState('');
   const [esito, setEsito] = useState(null);
   const [risultato, setRisultato] = useState(null);   // { azione: 'ingresso'|'uscita', targa, cabina }
@@ -36,7 +39,7 @@ export default function Ingresso() {
   const fileRef = useRef(null);
 
   function reset() {
-    setFase('home');
+    setFase('manuale');
     setTarga('');
     setEsito(null);
     setRisultato(null);
@@ -176,46 +179,37 @@ export default function Ingresso() {
     );
   }
 
-  if (fase === 'manuale') {
-    return (
-      <div className="pannello">
-        <h2>Inserimento manuale</h2>
-        {errMsg && <div className="errore">{errMsg}</div>}
-        {DEBUG && diag && <div className="ocr-mini" style={{ opacity: 0.7 }}>⏱ {diag}</div>}
+  // fase === 'manuale' — schermata di partenza: campo targa + scorciatoia foto.
+  // Niente titolo (il placeholder del campo dice già cosa fare) e niente
+  // "indietro": dietro non c'è più nulla.
+  return (
+    <div className="pannello">
+      {errMsg && <div className="errore">{errMsg}</div>}
+      {DEBUG && diag && <div className="ocr-mini" style={{ opacity: 0.7 }}>⏱ {diag}</div>}
+      <div className="riga-targa">
         <TargaInput
           value={targa}
           onChange={setTarga}
           onPick={(t) => { setTarga(t); controlla(t); }}
         />
-        <button className="btn-grande" onClick={() => controlla(targa)}>CONTROLLA</button>
-        <button className="btn-testo" onClick={reset}>{errMsg ? '← Riscatta foto' : '← Indietro'}</button>
+        <button
+          className="btn-cam"
+          onClick={() => fileRef.current?.click()}
+          aria-label="Leggi la targa da una foto"
+          title="Leggi la targa da una foto"
+        >
+          <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+            {/* corpo camera */}
+            <rect x="6" y="18" width="52" height="36" rx="8" stroke="currentColor" strokeWidth="4" />
+            {/* hump del mirino */}
+            <path d="M22 18l3-6h14l3 6" stroke="currentColor" strokeWidth="4" strokeLinejoin="round" />
+            {/* lente */}
+            <circle cx="32" cy="38" r="11" stroke="currentColor" strokeWidth="4" />
+            <circle cx="32" cy="38" r="4" fill="currentColor" />
+          </svg>
+        </button>
       </div>
-    );
-  }
-
-  // fase === 'home' — solo foto.
-  return (
-    <div className="schermo-foto">
-      <button className="btn-foto-hero" onClick={() => fileRef.current?.click()}>
-        <span className="foto-glow" aria-hidden="true" />
-        <svg className="foto-svg" viewBox="0 0 64 64" fill="none" aria-hidden="true">
-          {/* corpo camera */}
-          <rect x="6" y="18" width="52" height="36" rx="8" stroke="currentColor" strokeWidth="3" />
-          {/* hump del mirino */}
-          <path d="M22 18l3-6h14l3 6" stroke="currentColor" strokeWidth="3" strokeLinejoin="round" />
-          {/* lente esterna */}
-          <circle cx="32" cy="38" r="11" stroke="currentColor" strokeWidth="3" />
-          {/* lente interna (riflesso) */}
-          <circle cx="32" cy="38" r="5" fill="currentColor" />
-          {/* flash LED */}
-          <circle cx="48" cy="26" r="1.8" fill="currentColor" />
-        </svg>
-        <span className="foto-label">Scatta foto targa</span>
-        <span className="foto-sublabel">Inquadra la targa nel riquadro</span>
-      </button>
-      <button className="btn-testo" onClick={() => setFase('manuale')}>
-        Inserisci a mano
-      </button>
+      <button className="btn-grande" onClick={() => controlla(targa)}>CONTROLLA</button>
       <input
         ref={fileRef}
         type="file"
