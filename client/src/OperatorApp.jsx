@@ -7,6 +7,7 @@ import Uscita from './components/Uscita.jsx';
 import Stato from './components/Stato.jsx';
 import Setup from './components/Setup.jsx';
 import Pending from './components/Pending.jsx';
+import Standby from './components/Standby.jsx';
 
 const TABS = [
   { id: 'ingresso', label: 'Ingresso', icon: '🚗' },
@@ -106,6 +107,9 @@ export default function OperatorApp() {
           </button>
         ))}
       </nav>
+      {/* Solo qui: setup e attesa-approvazione durano un minuto in tutto, è la
+          giornata di lavoro che consuma batteria. */}
+      <Standby />
     </div>
   );
 }

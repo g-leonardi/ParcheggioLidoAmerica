@@ -278,6 +278,24 @@ body {
   padding: 12px;
 }
 
+/* Velo di standby (vedi components/Standby.jsx). Nero PIENO, non "quasi nero":
+   su OLED è la differenza fra pixel spenti e pixel accesi, cioè tutto il punto.
+   Scritta appena percettibile per lo stesso motivo. Copre anche le safe area,
+   quindi niente barre chiare che restano accese ai bordi. */
+.standby {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  background: #000;
+  display: grid;
+  place-items: center;
+  color: rgba(255, 255, 255, 0.16);
+  font-size: 13px;
+  letter-spacing: 0.08em;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
 /* schermo esito a tutto campo (verde/rosso) */
 .schermo {
   flex: 1;

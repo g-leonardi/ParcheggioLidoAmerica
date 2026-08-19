@@ -33,6 +33,13 @@ alto contrasto, pochissimi tap.
 - **Log / vista super user**: un super user vede i log storici (default: **giorno
   corrente**). Ogni riga: **data, ora, targa, ingresso/uscita, cabina**.
 - **Le foto NON vengono salvate**: elaborate in memoria e scartate subito dopo l'OCR.
+- **Standby anti-batteria (solo app operatore)**: dopo **1 minuto** senza tocchi l'app si
+  copre di nero pieno (`components/Standby.jsx`); il primo tap la riporta com'era, senza
+  passare dal blocco schermo del telefono. Serve perché il tema chiaro — obbligatorio per
+  leggere sotto il sole — su OLED ad alta luminosità è la voce di consumo principale della
+  giornata. Il tap di risveglio viene assorbito dal velo, MAI dal bottone sottostante.
+  Disattivabile su un singolo telefono aprendo l'app con `?standby=0`. Nel pannello Manager
+  NON va messo: lì si sta fermi a leggere grafici e liste.
 
 ## Modello dati
 
